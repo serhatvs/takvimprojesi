@@ -36,6 +36,7 @@ describe("POST /events", () => {
   let pressCookie: string;
   let otherClubAdminCookie: string;
   let clubAdminId: string;
+  let pressEditorId: string;
 
   beforeAll(async () => {
     loadRootEnv();
@@ -140,6 +141,10 @@ describe("POST /events", () => {
       .send({ email: "press.dev@agu.edu.tr" })
       .expect(201);
     pressCookie = getSessionCookie(pressLogin.headers["set-cookie"]);
+    const pressEditor = await prisma.user.findUniqueOrThrow({
+      where: { email: "press.dev@agu.edu.tr" }
+    });
+    pressEditorId = pressEditor.id;
 
     const otherClubAdminLogin = await request(app.getHttpServer())
       .post("/auth/dev-login")
@@ -173,9 +178,10 @@ describe("POST /events", () => {
       });
       const submitEvents = await prisma.event.findMany({
         where: {
-          slug: {
-            startsWith: "integration-submit-event"
-          }
+          OR: [
+            { slug: { startsWith: "integration-submit-event" } },
+            { slug: { startsWith: "integration-review-event" } }
+          ]
         },
         select: { id: true }
       });
@@ -428,6 +434,181 @@ describe("POST /events", () => {
     expect(auditCount).toBe(0);
   });
 
+  it("returns 401 when reviewing without authentication", async () => {
+    const event = await createSubmittedEvent("integration-review-event-unauth");
+
+    await request(app.getHttpServer()).post(`/events/${event.id}/approve`).expect(401);
+  });
+
+  it("allows a press editor to request changes and writes review and audit", async () => {
+    const event = await createSubmittedEvent("integration-review-event-changes");
+
+    const response = await request(app.getHttpServer())
+      .post(`/events/${event.id}/request-changes`)
+      .set("Cookie", pressCookie)
+      .send({ comment: " Etkinlik gorseli guncellenmeli. " })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: event.id,
+      clubId,
+      createdById: clubAdminId,
+      status: "CHANGES_REQUESTED"
+    });
+
+    await expectReviewAndAudit(event.id, "CHANGES_REQUESTED", "EVENT_CHANGES_REQUESTED");
+  });
+
+  it("allows a press editor to reject", async () => {
+    const event = await createSubmittedEvent("integration-review-event-reject");
+
+    const response = await request(app.getHttpServer())
+      .post(`/events/${event.id}/reject`)
+      .set("Cookie", pressCookie)
+      .send({ comment: "Etkinlik mevcut kampus kurallarina uygun degil." })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: event.id,
+      status: "REJECTED"
+    });
+    await expectReviewAndAudit(event.id, "REJECTED", "EVENT_REJECTED");
+  });
+
+  it("allows a press editor to approve without publishing", async () => {
+    const event = await createSubmittedEvent("integration-review-event-approve");
+
+    const response = await request(app.getHttpServer())
+      .post(`/events/${event.id}/approve`)
+      .set("Cookie", pressCookie)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: event.id,
+      status: "APPROVED"
+    });
+
+    const storedEvent = await prisma.event.findUniqueOrThrow({
+      where: { id: event.id }
+    });
+    expect(storedEvent.status).toBe("APPROVED");
+    expect(storedEvent.createdById).toBe(clubAdminId);
+    expect(storedEvent.clubId).toBe(clubId);
+    await expectReviewAndAudit(event.id, "APPROVED", "EVENT_APPROVED");
+  });
+
+  it("returns 403 for a club admin reviewing their own event", async () => {
+    const event = await createSubmittedEvent("integration-review-event-club-admin");
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/approve`)
+      .set("Cookie", clubAdminCookie)
+      .expect(403);
+  });
+
+  it("returns 404 for reviewing an unknown event", async () => {
+    await request(app.getHttpServer())
+      .post("/events/00000000-0000-4000-8000-000000000000/approve")
+      .set("Cookie", pressCookie)
+      .expect(404);
+  });
+
+  it("returns 400 for an invalid review event id", async () => {
+    await request(app.getHttpServer())
+      .post("/events/not-a-valid-id/approve")
+      .set("Cookie", pressCookie)
+      .expect(400);
+  });
+
+  it("returns 409 when reviewing a draft event", async () => {
+    const event = await createDraftEvent("integration-review-event-draft");
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/approve`)
+      .set("Cookie", pressCookie)
+      .expect(409);
+  });
+
+  it("returns 400 for blank request-changes and reject comments", async () => {
+    const changesEvent = await createSubmittedEvent("integration-review-event-blank-changes");
+    const rejectEvent = await createSubmittedEvent("integration-review-event-blank-reject");
+
+    await request(app.getHttpServer())
+      .post(`/events/${changesEvent.id}/request-changes`)
+      .set("Cookie", pressCookie)
+      .send({ comment: " " })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post(`/events/${rejectEvent.id}/reject`)
+      .set("Cookie", pressCookie)
+      .send({ comment: "" })
+      .expect(400);
+  });
+
+  it("returns 409 for a second review decision and writes only one review and audit", async () => {
+    const event = await createSubmittedEvent("integration-review-event-repeat");
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/approve`)
+      .set("Cookie", pressCookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/reject`)
+      .set("Cookie", pressCookie)
+      .send({ comment: "Second decision." })
+      .expect(409);
+
+    const reviewCount = await prisma.eventReview.count({ where: { eventId: event.id } });
+    const auditCount = await prisma.auditLog.count({
+      where: {
+        entityType: "Event",
+        entityId: event.id,
+        action: { in: ["EVENT_APPROVED", "EVENT_REJECTED", "EVENT_CHANGES_REQUESTED"] }
+      }
+    });
+    expect(reviewCount).toBe(1);
+    expect(auditCount).toBe(1);
+  });
+
+  it("does not create review or audit for failed review", async () => {
+    const event = await createSubmittedEvent("integration-review-event-failed");
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/approve`)
+      .set("Cookie", clubAdminCookie)
+      .expect(403);
+
+    const reviewCount = await prisma.eventReview.count({ where: { eventId: event.id } });
+    const auditCount = await prisma.auditLog.count({
+      where: {
+        entityType: "Event",
+        entityId: event.id,
+        action: { in: ["EVENT_APPROVED", "EVENT_REJECTED", "EVENT_CHANGES_REQUESTED"] }
+      }
+    });
+    expect(reviewCount).toBe(0);
+    expect(auditCount).toBe(0);
+  });
+
+  it("allows only one of two concurrent review decisions", async () => {
+    const event = await createSubmittedEvent("integration-review-event-concurrent");
+
+    const responses = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/events/${event.id}/approve`)
+        .set("Cookie", pressCookie),
+      request(app.getHttpServer())
+        .post(`/events/${event.id}/reject`)
+        .set("Cookie", pressCookie)
+        .send({ comment: "Concurrent rejection." })
+    ]);
+
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses).toEqual([200, 409]);
+    expect(await prisma.eventReview.count({ where: { eventId: event.id } })).toBe(1);
+  });
+
   async function createDraftEvent(slugPrefix: string) {
     return prisma.event.create({
       data: {
@@ -442,6 +623,49 @@ describe("POST /events", () => {
         capacity: 100,
         status: "DRAFT"
       }
+    });
+  }
+
+  async function createSubmittedEvent(slugPrefix: string) {
+    return prisma.event.create({
+      data: {
+        clubId,
+        createdById: clubAdminId,
+        title: `Review Integration Event ${Date.now()}`,
+        slug: `${slugPrefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        description: "Review integration event description",
+        startsAt: new Date("2026-08-10T11:00:00.000Z"),
+        endsAt: new Date("2026-08-10T13:00:00.000Z"),
+        location: "AGU Buyuk Amfi",
+        capacity: 100,
+        status: "SUBMITTED"
+      }
+    });
+  }
+
+  async function expectReviewAndAudit(
+    eventId: string,
+    decision: "APPROVED" | "REJECTED" | "CHANGES_REQUESTED",
+    action: string
+  ) {
+    const reviews = await prisma.eventReview.findMany({
+      where: { eventId, decision }
+    });
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0]?.reviewerId).toBe(pressEditorId);
+
+    const audits = await prisma.auditLog.findMany({
+      where: {
+        entityType: "Event",
+        entityId: eventId,
+        action
+      }
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      actorId: pressEditorId,
+      before: { status: "SUBMITTED" },
+      after: { status: decision }
     });
   }
 });

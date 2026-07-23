@@ -63,10 +63,13 @@ const validRequest = {
 function createService({
   canCreate = true,
   canSubmit = true,
+  canReview = true,
   clubExists = true,
   existingStatus = "DRAFT",
   updateCount = 1,
-  auditFails = false
+  updatedStatus = "SUBMITTED",
+  auditFails = false,
+  reviewFails = false
 } = {}) {
   const createdEvent = {
     id: "event-id",
@@ -109,8 +112,13 @@ function createService({
           updateMany: vi.fn().mockResolvedValue({ count: updateCount }),
           findUniqueOrThrow: vi.fn().mockResolvedValue({
             ...createdEvent,
-            status: "SUBMITTED"
+            status: updatedStatus
           })
+        },
+        eventReview: {
+          create: reviewFails
+            ? vi.fn().mockRejectedValue(new Error("review failed"))
+            : vi.fn().mockResolvedValue({ id: "review-id" })
         },
         auditLog: {
           create: auditFails
@@ -122,13 +130,22 @@ function createService({
   };
   const authorization = {
     canCreateEventForClub: vi.fn().mockResolvedValue(canCreate),
-    canSubmitEventForClub: vi.fn().mockResolvedValue(canSubmit)
+    canSubmitEventForClub: vi.fn().mockResolvedValue(canSubmit),
+    canReviewEvents: vi.fn().mockReturnValue(canReview)
   };
   const lifecycle = {
     assertTransitionAllowed: vi.fn((from: string, to: string) => {
-      if (from !== "DRAFT" || to !== "SUBMITTED") {
-        throw new Error("invalid transition");
+      if (from === "DRAFT" && to === "SUBMITTED") {
+        return;
       }
+      if (
+        from === "SUBMITTED" &&
+        ["CHANGES_REQUESTED", "REJECTED", "APPROVED"].includes(to)
+      ) {
+        return;
+      }
+
+      throw new Error("invalid transition");
     })
   };
 
@@ -349,6 +366,242 @@ describe("EventsService", () => {
 
     await expect(
       service.submitDraftEvent(clubAdmin, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("allows a press editor to request changes", async () => {
+    const { service, lifecycle } = createService({
+      existingStatus: "SUBMITTED",
+      updatedStatus: "CHANGES_REQUESTED"
+    });
+
+    const event = await service.reviewEvent(
+      pressEditor,
+      "11111111-1111-4111-8111-111111111111",
+      "CHANGES_REQUESTED",
+      " Please update the venue. "
+    );
+
+    expect(event.status).toBe("CHANGES_REQUESTED");
+    expect(lifecycle.assertTransitionAllowed).toHaveBeenCalledWith(
+      "SUBMITTED",
+      "CHANGES_REQUESTED",
+      ["PRESS_EDITOR"]
+    );
+  });
+
+  it("allows a press editor to reject", async () => {
+    const { service } = createService({
+      existingStatus: "SUBMITTED",
+      updatedStatus: "REJECTED"
+    });
+
+    const event = await service.reviewEvent(
+      pressEditor,
+      "11111111-1111-4111-8111-111111111111",
+      "REJECTED",
+      "Policy mismatch."
+    );
+
+    expect(event.status).toBe("REJECTED");
+  });
+
+  it("allows a press editor to approve", async () => {
+    const { service } = createService({
+      existingStatus: "SUBMITTED",
+      updatedStatus: "APPROVED"
+    });
+
+    const event = await service.reviewEvent(
+      pressEditor,
+      "11111111-1111-4111-8111-111111111111",
+      "APPROVED"
+    );
+
+    expect(event.status).toBe("APPROVED");
+  });
+
+  it("allows system admin to review through explicit bypass", async () => {
+    const { service, lifecycle } = createService({
+      existingStatus: "SUBMITTED",
+      updatedStatus: "APPROVED"
+    });
+
+    const event = await service.reviewEvent(
+      systemAdmin,
+      "11111111-1111-4111-8111-111111111111",
+      "APPROVED"
+    );
+
+    expect(event.status).toBe("APPROVED");
+    expect(lifecycle.assertTransitionAllowed).toHaveBeenCalledWith("SUBMITTED", "APPROVED", [
+      "SYSTEM_ADMIN"
+    ]);
+  });
+
+  it("does not allow a club admin to review", async () => {
+    const { service } = createService({ canReview: false, existingStatus: "SUBMITTED" });
+
+    await expect(
+      service.reviewEvent(
+        clubAdmin,
+        "11111111-1111-4111-8111-111111111111",
+        "APPROVED"
+      )
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("only reviews submitted events", async () => {
+    const { service } = createService({ existingStatus: "DRAFT" });
+
+    await expect(
+      service.reviewEvent(
+        pressEditor,
+        "11111111-1111-4111-8111-111111111111",
+        "APPROVED"
+      )
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("rejects blank request-changes and reject comments", async () => {
+    const { service } = createService({ existingStatus: "SUBMITTED" });
+
+    await expect(
+      service.reviewEvent(
+        pressEditor,
+        "11111111-1111-4111-8111-111111111111",
+        "CHANGES_REQUESTED",
+        " "
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.reviewEvent(
+        pressEditor,
+        "11111111-1111-4111-8111-111111111111",
+        "REJECTED",
+        ""
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("creates EventReview and AuditLog inside one review transaction", async () => {
+    const calls: string[] = [];
+    const transactionClient = {
+      event: {
+        updateMany: vi.fn(async () => {
+          calls.push("update");
+          return { count: 1 };
+        }),
+        findUniqueOrThrow: vi.fn(async () => {
+          calls.push("read");
+          return { status: "APPROVED" };
+        })
+      },
+      eventReview: {
+        create: vi.fn(async () => {
+          calls.push("review");
+          return { id: "review-id" };
+        })
+      },
+      auditLog: {
+        create: vi.fn(async () => {
+          calls.push("audit");
+          return { id: "audit-id" };
+        })
+      }
+    };
+    const { service, prisma } = createService({ existingStatus: "SUBMITTED" });
+    prisma.$transaction.mockImplementationOnce(async (callback) => callback(transactionClient));
+
+    await service.reviewEvent(
+      pressEditor,
+      "11111111-1111-4111-8111-111111111111",
+      "APPROVED",
+      "Ready."
+    );
+
+    expect(calls).toEqual(["update", "review", "audit", "read"]);
+    expect(transactionClient.eventReview.create).toHaveBeenCalledWith({
+      data: {
+        eventId: "11111111-1111-4111-8111-111111111111",
+        reviewerId: "press-editor-id",
+        decision: "APPROVED",
+        comment: "Ready."
+      }
+    });
+    expect(transactionClient.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorId: "press-editor-id",
+        entityType: "Event",
+        entityId: "11111111-1111-4111-8111-111111111111",
+        action: "EVENT_APPROVED",
+        before: { status: "SUBMITTED" },
+        after: { status: "APPROVED" }
+      })
+    });
+  });
+
+  it("does not create review or audit when conditional review update fails", async () => {
+    const transactionClient = {
+      event: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        findUniqueOrThrow: vi.fn()
+      },
+      eventReview: {
+        create: vi.fn()
+      },
+      auditLog: {
+        create: vi.fn()
+      }
+    };
+    const { service, prisma } = createService({ existingStatus: "SUBMITTED" });
+    prisma.$transaction.mockImplementationOnce(async (callback) => callback(transactionClient));
+
+    await expect(
+      service.reviewEvent(
+        pressEditor,
+        "11111111-1111-4111-8111-111111111111",
+        "APPROVED"
+      )
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(transactionClient.eventReview.create).not.toHaveBeenCalled();
+    expect(transactionClient.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("bubbles review transaction failure so partial review state can roll back", async () => {
+    const { service } = createService({ existingStatus: "SUBMITTED", reviewFails: true });
+
+    await expect(
+      service.reviewEvent(
+        pressEditor,
+        "11111111-1111-4111-8111-111111111111",
+        "APPROVED"
+      )
+    ).rejects.toThrow("review failed");
+  });
+
+  it("bubbles review audit failure so the transaction can roll back", async () => {
+    const { service } = createService({ existingStatus: "SUBMITTED", auditFails: true });
+
+    await expect(
+      service.reviewEvent(
+        pressEditor,
+        "11111111-1111-4111-8111-111111111111",
+        "APPROVED"
+      )
+    ).rejects.toThrow("audit failed");
+  });
+
+  it("returns conflict for a concurrent second review decision", async () => {
+    const { service } = createService({ existingStatus: "SUBMITTED", updateCount: 0 });
+
+    await expect(
+      service.reviewEvent(
+        pressEditor,
+        "11111111-1111-4111-8111-111111111111",
+        "APPROVED"
+      )
     ).rejects.toBeInstanceOf(ConflictException);
   });
 });

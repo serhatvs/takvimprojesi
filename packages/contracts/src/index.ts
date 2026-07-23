@@ -104,5 +104,9 @@ export interface EventResponse {
   updatedAt: string;
 }
 
+export interface ReviewEventRequest {
+  comment?: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

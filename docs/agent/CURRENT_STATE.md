@@ -2,7 +2,7 @@
 
 ## Mevcut Asama
 
-Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, taslak etkinlik olusturma API'si ve taslagi Basin Yayin onayina gonderme API'si tamamlandi.
+Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, taslak etkinlik olusturma API'si, taslagi Basin Yayin onayina gonderme API'si ve Basin Yayin inceleme karar API'leri tamamlandi.
 
 ## Tamamlanan Isler
 
@@ -33,6 +33,8 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 - Event olusturma yetkisi `AuthorizationService.canCreateEventForClub` uzerinden uygulanir; `SYSTEM_ADMIN` icin acik bypass vardir, `PRESS_EDITOR` kulup uyeligi olmadan kulup adina etkinlik olusturamaz.
 - `POST /events/:eventId/submit` eklendi; authenticated kulup admini veya `SYSTEM_ADMIN` `DRAFT -> SUBMITTED` gecisini yapabilir.
 - Submit gecisi status kosullu update ve audit create islemini tek transaction icinde yapar; tekrarli/eszamanli submit `409 Conflict` doner.
+- `POST /events/:eventId/request-changes`, `POST /events/:eventId/reject` ve `POST /events/:eventId/approve` eklendi; `PRESS_EDITOR` veya `SYSTEM_ADMIN` submitted etkinliklerde karar verebilir.
+- Review gecisleri status kosullu update, `EventReview` create ve audit create adimlarini tek transaction icinde yapar; tekrarli/eszamanli ikinci karar `409 Conflict` doner.
 
 ## Calisan Komutlar
 
@@ -52,11 +54,12 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 - Auth smoke: seed kullaniciyla `/auth/dev-login`, cookie ile `/auth/me`, `/auth/logout`, logout sonrasi `/auth/me` 401
 - Events smoke: club admin ile `/events` 201 `DRAFT`, student ile ayni istek 403
 - Submit smoke: club admin ile `/events/:eventId/submit` 200 `SUBMITTED`, ikinci submit 409, student submit 403, audit kaydi dogrulandi
+- Review smoke: PRESS_EDITOR ile request-changes/reject/approve 200, ikinci karar 409, club admin karar girisimi 403, review ve audit kayitlari dogrulandi
 
 ## Bilinen Eksikler
 
 - Gercek AGU SSO entegrasyonu yok; gelistirme auth siniri gelecekte SSO adapter'i ile degistirilmek uzere kuruldu.
-- Uygulama endpointleri olarak health, auth, taslak event olusturma ve taslagi onaya gonderme vardir; listeleme, detay, guncelleme ve Basin Yayin karar endpointleri yoktur.
+- Uygulama endpointleri olarak health, auth, taslak event olusturma, taslagi onaya gonderme ve Basin Yayin karar endpointleri vardir; listeleme, detay, guncelleme ve yayinlama endpointleri yoktur.
 - Bildirim adapterleri placeholder mimari sinir olarak duruyor.
 - QR token uretme/dogrulama servisi henuz uygulanmadi.
 - Sistem Node'u hala `/usr/bin/node` uzerinden v26.4.0; proje dogrulamasi nvm altindaki Node v24.18.0 ile yapildi.
@@ -68,7 +71,7 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 
 ## Bir Sonraki Onerilen Gorev
 
-Bir sonraki urun dikey ozelligi olarak Basin Yayin editorunun submitted etkinlikleri inceleme karar akisi gelistirilmeli.
+Bir sonraki urun dikey ozelligi olarak onaylanan etkinliklerin kampus takviminde yayinlanmasi (`APPROVED -> PUBLISHED`) gelistirilmeli.
 
 ## Son Dogrulama Sonuclari
 
@@ -81,8 +84,8 @@ Bir sonraki urun dikey ozelligi olarak Basin Yayin editorunun submitted etkinlik
 - Seed: iki calisma da gecti; DB sayimlari `users=5`, `user_roles=8`, `clubs=1`, `draft_events=1`, `published_events=1`.
 - Lint: gecti, 5 package scope, 8 task.
 - Typecheck: gecti, 5 package scope, 8 task.
-- Unit tests: gecti; API 29 test, contracts 2 test. Config/ui/web test dosyasi olmadigi icin acik `--passWithNoTests`.
-- Integration tests: gecti; API 24 integration test. Diger paketlerde integration dosyasi olmadigi icin acik `--passWithNoTests`.
+- Unit tests: gecti; API 41 test, contracts 2 test. Config/ui/web test dosyasi olmadigi icin acik `--passWithNoTests`.
+- Integration tests: gecti; API 36 integration test. Diger paketlerde integration dosyasi olmadigi icin acik `--passWithNoTests`.
 - Build: gecti; 5 package, web `next build --webpack`.
-- API smoke: gecti, `/health` HTTP 200, auth akisi `dev-login -> me -> logout -> me 401`, event create akisi club admin ile 201 `DRAFT` ve student ile 403, submit akisi club admin ile 200 `SUBMITTED`, ikinci submit 409, student submit 403 ve audit count 1.
+- API smoke: gecti, `/health` HTTP 200, auth akisi `dev-login -> me -> logout -> me 401`, event create akisi club admin ile 201 `DRAFT` ve student ile 403, submit akisi club admin ile 200 `SUBMITTED`, ikinci submit 409, student submit 403 ve audit count 1, review akisi PRESS_EDITOR ile uc karar 200, ikinci karar 409, club admin 403, review/audit kayitlari dogrulandi.
 - Web smoke: gecti; API acikken health sonucu ve gelistirme auth kontrolu render edildi.

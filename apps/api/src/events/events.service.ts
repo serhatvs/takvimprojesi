@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
+import type { EventReviewDecision, EventStatus } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { AuthorizationService } from "../auth/authorization.service";
 import type { Principal } from "../auth/principal";
@@ -126,6 +127,88 @@ export class EventsService {
     });
   }
 
+  async reviewEvent(
+    principal: Principal,
+    eventId: string,
+    decision: EventReviewDecision,
+    comment?: unknown
+  ) {
+    this.assertValidEventId(eventId);
+    const normalizedComment = this.validateReviewComment(decision, comment);
+    const nextStatus = this.statusForReviewDecision(decision);
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        status: true,
+        createdById: true
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    if (!this.authorizationService.canReviewEvents(principal)) {
+      throw new ForbiddenException("You are not allowed to review events.");
+    }
+
+    const lifecycleRoles = principal.globalRoles.includes("SYSTEM_ADMIN")
+      ? ["SYSTEM_ADMIN" as const]
+      : ["PRESS_EDITOR" as const];
+
+    try {
+      this.eventLifecycleService.assertTransitionAllowed(event.status, nextStatus, lifecycleRoles);
+    } catch {
+      throw new ConflictException("Only submitted events can be reviewed.");
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const updateResult = await transaction.event.updateMany({
+        where: {
+          id: eventId,
+          status: "SUBMITTED"
+        },
+        data: {
+          status: nextStatus
+        }
+      });
+
+      if (updateResult.count !== 1) {
+        throw new ConflictException("Only submitted events can be reviewed.");
+      }
+
+      await transaction.eventReview.create({
+        data: {
+          eventId,
+          reviewerId: principal.userId,
+          decision,
+          comment: normalizedComment
+        }
+      });
+
+      await transaction.auditLog.create({
+        data: {
+          actorId: principal.userId,
+          entityType: "Event",
+          entityId: eventId,
+          action: this.auditActionForReviewDecision(decision),
+          before: { status: "SUBMITTED" },
+          after: { status: nextStatus },
+          metadata: {
+            decision
+          }
+        }
+      });
+
+      return transaction.event.findUniqueOrThrow({
+        where: { id: eventId }
+      });
+    });
+  }
+
   private validateCreateDraftEvent(dto: CreateDraftEventDto): ValidCreateDraftEventInput {
     const clubId = this.requiredString(dto.clubId, "clubId");
     const title = this.requiredString(dto.title, "title");
@@ -207,6 +290,40 @@ export class EventsService {
       )
     ) {
       throw new BadRequestException("eventId must be a valid UUID.");
+    }
+  }
+
+  private validateReviewComment(decision: EventReviewDecision, comment: unknown): string {
+    if (decision === "APPROVED") {
+      return typeof comment === "string" ? comment.trim() : "";
+    }
+
+    if (typeof comment !== "string" || comment.trim().length === 0) {
+      throw new BadRequestException("comment is required.");
+    }
+
+    return comment.trim();
+  }
+
+  private statusForReviewDecision(decision: EventReviewDecision): EventStatus {
+    switch (decision) {
+      case "CHANGES_REQUESTED":
+        return "CHANGES_REQUESTED";
+      case "REJECTED":
+        return "REJECTED";
+      case "APPROVED":
+        return "APPROVED";
+    }
+  }
+
+  private auditActionForReviewDecision(decision: EventReviewDecision): string {
+    switch (decision) {
+      case "CHANGES_REQUESTED":
+        return "EVENT_CHANGES_REQUESTED";
+      case "REJECTED":
+        return "EVENT_REJECTED";
+      case "APPROVED":
+        return "EVENT_APPROVED";
     }
   }
 }

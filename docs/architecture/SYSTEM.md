@@ -32,6 +32,8 @@ Taslak etkinlik olusturma kulup icinde `ADMIN` uyelik rolu gerektirir. `SYSTEM_A
 
 Taslak etkinligi onaya gonderme yalnizca `DRAFT -> SUBMITTED` gecisini kapsar. Gecis `EventLifecycleService` ile dogrulanir, status guncellemesi kosullu olarak yalnizca mevcut status `DRAFT` iken yapilir ve audit kaydi ayni transaction icinde olusturulur. Tekrarli veya eszamanli ikinci submit `409 Conflict` ile sonuclanir.
 
+Basin Yayin inceleme islemleri yalnizca `PRESS_EDITOR` veya `SYSTEM_ADMIN` tarafindan yapilabilir. `SUBMITTED -> CHANGES_REQUESTED`, `SUBMITTED -> REJECTED` ve `SUBMITTED -> APPROVED` gecisleri `EventLifecycleService` ile dogrulanir; kulup admini kendi etkinligini bu rol nedeniyle inceleyemez. Her karar status kosullu update, `EventReview` create ve audit create adimlarini tek transaction icinde yapar; ikinci veya yarisan karar `409 Conflict` doner.
+
 ## QR Katilim Yaklasimi
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.
@@ -45,6 +47,8 @@ QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurl
 Durum degisiklikleri ve kritik operasyonlar `AuditLog` ile izlenir. Log kaydi actor, entity, action, onceki/sonraki deger ve metadata alanlarini tasir. Audit log islemle ayni transaction icinde yazilmalidir.
 
 `DRAFT -> SUBMITTED` submit isleminde audit action `EVENT_SUBMITTED`, entity `Event`, onceki status `DRAFT`, yeni status `SUBMITTED` ve actor kullanici kimligi tutulur. Cookie, token veya secret audit metadata'sina yazilmaz.
+
+Basin Yayin kararlari icin audit action degerleri `EVENT_CHANGES_REQUESTED`, `EVENT_REJECTED` ve `EVENT_APPROVED` olarak tutulur. Audit metadata karar bilgisini tasir; yorum `EventReview` icinde saklanir ve token, cookie veya secret audit/review kayitlarina yazilmaz.
 
 ## Guvenlik ve Kisisel Veri Minimizasyonu
 

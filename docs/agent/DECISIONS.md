@@ -46,3 +46,5 @@
   - Gerekce: Kulup adina etkinlik olusturma kulup yetkisidir; `PRESS_EDITOR` Basin Yayin rolu oldugu icin otomatik kulup temsilcisi sayilmaz. Sistem yoneticisi operasyonel destek icin istisnadir.
 - `DRAFT -> SUBMITTED` gecisi kosullu update ve audit create islemini tek Prisma transaction icinde yapar.
   - Gerekce: Tekrarli veya eszamanli ikinci submit yalnizca status `DRAFT` degilse basarisiz olur; audit kaydi event status degisikligiyle atomik kalir.
+- Basin Yayin karar endpointleri mevcut `EventReview` modelini migration olmadan kullanir; approve yorumunu opsiyonel kabul eder ve bos string olarak saklayabilir.
+  - Gerekce: Mevcut model karar, reviewer ve createdAt bilgisini guvenilir sekilde tasiyor. Red ve degisiklik isteme icin yorum zorunlu tutularak karar gerekcesi korunur; approve icin urun kapsaminda zorunlu yorum istenmedi.

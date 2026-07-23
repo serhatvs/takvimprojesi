@@ -46,4 +46,11 @@ export class AuthorizationService {
 
     return this.hasActiveClubRole(principal.userId, clubId, EVENT_SUBMITTER_CLUB_ROLES);
   }
+
+  canReviewEvents(principal: Principal): boolean {
+    return (
+      principal.globalRoles.includes("PRESS_EDITOR") ||
+      principal.globalRoles.includes("SYSTEM_ADMIN")
+    );
+  }
 }
