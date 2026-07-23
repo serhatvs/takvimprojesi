@@ -2,7 +2,7 @@
 
 ## Mevcut Asama
 
-Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, taslak etkinlik olusturma API'si, taslagi Basin Yayin onayina gonderme API'si, Basin Yayin inceleme karar API'leri, onaylanmis etkinligi yayinlama API'si, public yayinlanmis etkinlik kesif API'leri, ana sayfa public etkinlik listeleme ekrani, public etkinlik detay sayfasi, ogrenci etkinlik kayit API'si, detay sayfasi kayit kontrolu, QR attendance backend temeli, yetkili yoneticiler icin detay sayfasi QR yoklama paneli, ogrenci `/check-in` QR yoklama ekrani ve kulup etkinlik katilim ozeti API'si tamamlandi.
+Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, taslak etkinlik olusturma API'si, taslagi Basin Yayin onayina gonderme API'si, Basin Yayin inceleme karar API'leri, onaylanmis etkinligi yayinlama API'si, public yayinlanmis etkinlik kesif API'leri, ana sayfa public etkinlik listeleme ekrani, public etkinlik detay sayfasi, ogrenci etkinlik kayit API'si, detay sayfasi kayit kontrolu, QR attendance backend temeli, yetkili yoneticiler icin detay sayfasi QR yoklama paneli, ogrenci `/check-in` QR yoklama ekrani, kulup etkinlik katilim ozeti API'si ve detay sayfasi katilim ozeti paneli tamamlandi.
 
 ## Tamamlanan Isler
 
@@ -60,6 +60,9 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 - `GET /events/:eventId/attendance-summary` eklendi; etkinligin kulubundeki aktif `ADMIN` veya `SYSTEM_ADMIN` kayit/yoklama/gelmeyen/kalan kapasite/oran ozetini gorebilir.
 - Attendance summary yalniz `PUBLISHED`, `COMPLETED` ve `CANCELLED` event statuslari icin doner; diger statuslar `409 Conflict` sonucuna cevrilir.
 - Summary response ogrenci isim/e-posta/userId, QR token/hash, audit, review veya katilimci listesi dondurmez.
+- Web public detay sayfasina yalniz etkinligin kulubundeki aktif `ADMIN` veya `SYSTEM_ADMIN` icin gorunen `Katılım Özeti` paneli eklendi.
+- Katilim ozeti paneli `/auth/me` principal ve public event club ID'si ile gorunurluk karari verir; yetkisiz kullanici icin summary endpointine istek gondermez.
+- Panel `GET /events/:eventId/attendance-summary` cevabindaki metrikleri yeniden hesaplamadan Turkce bicimlendirir, `Verileri Yenile` ile manuel refresh yapar ve hata mesajlarini guvenli sekilde esler.
 
 ## Calisan Komutlar
 
@@ -90,13 +93,14 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 - Public web QR attendance panel smoke: gecici published event detay HTML'i 200, club admin ile iki token uretimi 200, token refresh sonrasi token degisti, eski token check-in 400, yeni token check-in 201, attendance count 1 ve HTML icinde ham token bulunmadigi dogrulandi; client panel gorunurluk/state gecisleri unit helper testleriyle dogrulandi
 - Student QR check-in smoke: `/check-in` HTTP 200, loading shell render, gecici published event+registration+attendance token ile manuel payload seklinde check-in API 201, ikinci check-in 409, PRESS_EDITOR API 403, HTML/API text icinde ham token bulunmadigi ve gecici kayit temizligi dogrulandi; gercek kamera otomasyonu yoktur
 - Attendance summary smoke: gecici published event icin 3 registration ve 2 attendance ile club admin summary 200, metrikler `3/2/1/97/66.7`, baska kulup admini 403, student 403, response icinde user/email/token bilgisi yok ve gecici kayit temizligi dogrulandi
+- Public web attendance summary panel smoke: gecici published event detay sayfasi HTTP 200, club admin summary API 200 ve metrikler `3/2/1/66.7`, sifir kayitli event metrikleri `0/0/0`, baska kulup admini 403, student 403, response/HTML icinde email/userId/token yok ve gecici kayit temizligi dogrulandi; hydrated refresh ve panel gorunurluk davranislari web unit helper testleriyle dogrulandi
 
 ## Bilinen Eksikler
 
 - Gercek AGU SSO entegrasyonu yok; gelistirme auth siniri gelecekte SSO adapter'i ile degistirilmek uzere kuruldu.
-- Uygulama endpointleri olarak health, auth, taslak event olusturma, taslagi onaya gonderme, Basin Yayin karar endpointleri, yayinlama endpointi, public yayinlanmis event liste/detay endpointleri, ogrenci event registration endpointi, current-user registration status endpointi, attendance token ve check-in endpointleri vardir; ana sayfada public liste ekrani ve `/events/[eventId]` public detay sayfasi/kayit paneli vardir; yonetimsel listeleme, guncelleme ve silme endpointleri yoktur.
+- Uygulama endpointleri olarak health, auth, taslak event olusturma, taslagi onaya gonderme, Basin Yayin karar endpointleri, yayinlama endpointi, public yayinlanmis event liste/detay endpointleri, ogrenci event registration endpointi, current-user registration status endpointi, attendance token, check-in ve attendance summary endpointleri vardir; ana sayfada public liste ekrani ve `/events/[eventId]` public detay sayfasi/kayit/QR/katilim ozeti panelleri vardir; yonetimsel listeleme, guncelleme ve silme endpointleri yoktur.
 - Bildirim adapterleri placeholder mimari sinir olarak duruyor.
-- QR indirme/paylasma, attendance dashboard'u, katilimci listesi ve manuel personel check-in henuz uygulanmadi.
+- QR indirme/paylasma, ayrintili attendance dashboard'u, katilimci listesi ve manuel personel check-in henuz uygulanmadi.
 - Gercek cihaz kamera taramasi browser automation veya fiziksel cihazla dogrulanmadi; scanner lifecycle ve parser davranisi hafif unit testlerle, check-in HTTP davranisi smoke testle dogrulandi.
 - Sistem Node'u hala `/usr/bin/node` uzerinden v26.4.0; proje dogrulamasi nvm altindaki Node v24.18.0 ile yapildi.
 - Eski yarim `node_modules*` kalintilari silinmeden repo disina tasindi.
@@ -107,7 +111,7 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 
 ## Bir Sonraki Onerilen Gorev
 
-Bir sonraki urun dikey ozelligi olarak kulup yoklama dashboard'u veya public etkinlik yonetim ekranlari gelistirilmeli.
+Bir sonraki urun dikey ozelligi olarak kulup icin ayrintili katilimci listesi/CSV dis aktarim siniri veya public etkinlik yonetim ekranlari gelistirilmeli.
 
 ## Son Dogrulama Sonuclari
 
@@ -120,8 +124,8 @@ Bir sonraki urun dikey ozelligi olarak kulup yoklama dashboard'u veya public etk
 - Seed: iki calisma da gecti; DB sayimlari `users=5`, `user_roles=8`, `clubs=1`, `draft_events=1`, `published_events=1`.
 - Lint: gecti, 5 package scope, 8 task.
 - Typecheck: gecti, 5 package scope, 8 task.
-- Unit tests: gecti; API 102 test, contracts 2 test, web 55 test. Config/ui test dosyasi olmadigi icin acik `--passWithNoTests`.
+- Unit tests: gecti; API 102 test, contracts 2 test, web 68 test. Config/ui test dosyasi olmadigi icin acik `--passWithNoTests`.
 - Integration tests: gecti; API 90 integration test. Diger paketlerde integration dosyasi olmadigi icin acik `--passWithNoTests`.
 - Build: gecti; `@agu/contracts`, `@agu/config`, `@agu/ui`, `@agu/api` ve `@agu/web` paketleri Node 24 altinda tekil build komutlariyla dogrulandi; web `next build --webpack`.
 - API smoke: gecti, `/health` HTTP 200, auth akisi `dev-login -> me -> logout -> me 401`, event create akisi club admin ile 201 `DRAFT` ve student ile 403, submit akisi club admin ile 200 `SUBMITTED`, ikinci submit 409, student submit 403 ve audit count 1, review akisi PRESS_EDITOR ile uc karar 200, ikinci karar 409, club admin 403, review/audit kayitlari dogrulandi, publish akisi PRESS_EDITOR ile 200 `PUBLISHED`, ikinci publish 409, club admin 403, `publishedAt` ve audit kaydi dogrulandi, public liste/detay akisi authentication olmadan 200/404 davranislariyla dogrulandi, registration akisi student ilk kayit 201, duplicate 409, kapasite dolu 409, status endpoint false/true ve DB count 1 olarak dogrulandi, QR attendance akisi token 200, check-in 201, duplicate 409, rotated old token 400 ve attendance count 1 olarak dogrulandi, attendance summary akisi club admin 200 metrik `3/2/1/66.7`, baska kulup admini 403 ve student 403 olarak dogrulandi.
-- Web smoke: gecti; API acikken health sonucu, gelistirme auth kontrolu, detail registration paneli render/kayit akisi, QR panel HTTP/token rotation smoke ve `/check-in` HTTP/API manuel payload smoke dogrulandi. Gercek browser automation yok; QR panel ve student scanner client state/rol/parser davranislari mevcut hafif Vitest helper testleriyle dogrulandi.
+- Web smoke: gecti; API acikken health sonucu, gelistirme auth kontrolu, detail registration paneli render/kayit akisi, QR panel HTTP/token rotation smoke, `/check-in` HTTP/API manuel payload smoke ve attendance summary detail HTTP/API smoke dogrulandi. Gercek browser automation yok; QR panel, student scanner ve attendance summary client state/rol/refresh davranislari mevcut hafif Vitest helper testleriyle dogrulandi.

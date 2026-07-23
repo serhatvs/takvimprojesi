@@ -74,3 +74,5 @@
   - Gerekce: Backend ID formatindan farkli frontend varsayimi eklenmez; token hata mesajlari, URL, storage veya DOM metni icine sizdirilmez.
 - Attendance summary `attendanceRate` degerini bir ondalik yuzde olarak dondurur.
   - Gerekce: Kulup ozet ekranlari icin okunabilir hassasiyet yeterlidir; kayit yoksa bolme hatasini onlemek icin oran `0` kabul edilir.
+- Web katilim ozeti paneli backend summary response'unu tek dogruluk kaynagi kabul eder ve otomatik polling yapmaz.
+  - Gerekce: `absentCount`, `remainingCapacity` ve `attendanceRate` API tarafinda tutarli sayim snapshot'i ile hesaplanir. Frontend yalniz Turkce bicimlendirme ve manuel refresh yaparak API ile UI arasinda farkli hesaplama riski olusturmaz.

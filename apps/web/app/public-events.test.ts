@@ -1,5 +1,21 @@
-import type { AuthPrincipal, PublicEventDetailResponse, PublicEventListItem } from "@agu/contracts";
+import type {
+  AuthPrincipal,
+  EventAttendanceSummaryResponse,
+  PublicEventDetailResponse,
+  PublicEventListItem
+} from "@agu/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  attendanceSummaryRequestOptions,
+  buildAttendanceSummaryPath,
+  canViewAttendanceSummary,
+  formatAttendanceRate,
+  formatRemainingCapacity,
+  messageForAttendanceSummaryError,
+  shouldApplyAttendanceSummaryResponse,
+  shouldRequestAttendanceSummary,
+  viewForAttendanceSummaryState
+} from "./attendance-summary";
 import {
   buildAttendanceTokenPath,
   canManageAttendanceQr,
@@ -59,6 +75,24 @@ const publicEvent: PublicEventListItem = {
 };
 
 const detailEvent: PublicEventDetailResponse = publicEvent;
+const attendanceSummary: EventAttendanceSummaryResponse = {
+  event: {
+    id: "event-1",
+    title: "Robotik Atolyesi",
+    status: "PUBLISHED",
+    startsAt: "2026-08-10T11:00:00.000Z",
+    endsAt: "2026-08-10T13:00:00.000Z",
+    capacity: 100
+  },
+  metrics: {
+    registrationCount: 3,
+    attendanceCount: 2,
+    absentCount: 1,
+    remainingCapacity: 97,
+    attendanceRate: 66.7
+  },
+  generatedAt: "2026-07-23T12:00:00.000Z"
+};
 const studentPrincipal: AuthPrincipal = {
   userId: "student-id",
   email: "student.dev@agu.edu.tr",
@@ -698,5 +732,171 @@ describe("public event helpers", () => {
     expect(parsed.ok).toBe(true);
     expect(buildCheckInSubmitPath("event-1")).not.toContain(token);
     expect(JSON.stringify(viewForCheckInState({ kind: "submitting" }))).not.toContain(token);
+  });
+
+  it("allows the event club admin and system admin to see attendance summary controls", () => {
+    expect(canViewAttendanceSummary(clubAdminPrincipal, "club-1")).toBe(true);
+    expect(canViewAttendanceSummary(systemAdminPrincipal, "club-1")).toBe(true);
+  });
+
+  it("hides attendance summary controls from other roles and other club admins", () => {
+    expect(canViewAttendanceSummary(otherClubAdminPrincipal, "club-1")).toBe(false);
+    expect(canViewAttendanceSummary(clubMemberPrincipal, "club-1")).toBe(false);
+    expect(canViewAttendanceSummary(pressPrincipal, "club-1")).toBe(false);
+    expect(canViewAttendanceSummary(studentPrincipal, "club-1")).toBe(false);
+  });
+
+  it("does not request attendance summary for unauthorized users", () => {
+    expect(shouldRequestAttendanceSummary(null, "club-1")).toBe(false);
+    expect(shouldRequestAttendanceSummary(studentPrincipal, "club-1")).toBe(false);
+    expect(viewForAttendanceSummaryState({ kind: "hidden" })).toMatchObject({
+      visible: false,
+      canRefresh: false
+    });
+  });
+
+  it("builds attendance summary requests with encoded event IDs and credential options", () => {
+    expect(buildAttendanceSummaryPath("event 1/unsafe")).toBe(
+      "/events/event%201%2Funsafe/attendance-summary"
+    );
+    expect(attendanceSummaryRequestOptions()).toMatchObject({
+      credentials: "include",
+      cache: "no-store"
+    });
+  });
+
+  it("shows attendance summary metrics from the backend response", () => {
+    const view = viewForAttendanceSummaryState({
+      kind: "ready",
+      summary: attendanceSummary,
+      loadedAt: "2026-07-23T19:15:00.000Z"
+    });
+
+    expect(view.metrics).toEqual([
+      { label: "Kayıtlı", value: "3" },
+      { label: "Yoklaması Alınan", value: "2" },
+      { label: "Katılmayan", value: "1" },
+      { label: "Kalan Kontenjan", value: "97" },
+      { label: "Katılım Oranı", value: "%66,7" }
+    ]);
+    expect(view.updatedAtLabel).toBe("23 Temmuz 2026 Perşembe 22:15");
+  });
+
+  it("does not recalculate attendance rate or absent count on the frontend", () => {
+    const view = viewForAttendanceSummaryState({
+      kind: "ready",
+      summary: {
+        ...attendanceSummary,
+        metrics: {
+          ...attendanceSummary.metrics,
+          registrationCount: 3,
+          attendanceCount: 2,
+          absentCount: 9,
+          attendanceRate: 12.3
+        }
+      },
+      loadedAt: "2026-07-23T19:15:00.000Z"
+    });
+
+    expect(view.metrics).toContainEqual({ label: "Katılmayan", value: "9" });
+    expect(view.rateLabel).toBe("%12,3");
+  });
+
+  it("shows unlimited remaining capacity and zero metrics safely", () => {
+    const view = viewForAttendanceSummaryState({
+      kind: "ready",
+      summary: {
+        ...attendanceSummary,
+        metrics: {
+          registrationCount: 0,
+          attendanceCount: 0,
+          absentCount: 0,
+          remainingCapacity: null,
+          attendanceRate: 0
+        }
+      },
+      loadedAt: "2026-07-23T19:15:00.000Z"
+    });
+
+    expect(view.metrics).toContainEqual({ label: "Kalan Kontenjan", value: "Sınırsız" });
+    expect(view.metrics).toContainEqual({ label: "Katılım Oranı", value: "%0" });
+  });
+
+  it("formats attendance summary values for Turkish display", () => {
+    expect(formatAttendanceRate(66.7)).toBe("%66,7");
+    expect(formatRemainingCapacity(null)).toBe("Sınırsız");
+    expect(formatRemainingCapacity(-1)).toBe("-");
+  });
+
+  it("disables parallel attendance summary refreshes while refreshing", () => {
+    const view = viewForAttendanceSummaryState({
+      kind: "refreshing",
+      summary: attendanceSummary,
+      loadedAt: "2026-07-23T19:15:00.000Z"
+    });
+
+    expect(view).toMatchObject({
+      message: "Katılım verileri yenileniyor…",
+      canRefresh: true,
+      refreshDisabled: true
+    });
+  });
+
+  it("updates the attendance summary last refresh label after successful refresh", () => {
+    const first = viewForAttendanceSummaryState({
+      kind: "ready",
+      summary: attendanceSummary,
+      loadedAt: "2026-07-23T19:15:00.000Z"
+    });
+    const second = viewForAttendanceSummaryState({
+      kind: "ready",
+      summary: attendanceSummary,
+      loadedAt: "2026-07-23T19:16:00.000Z"
+    });
+
+    expect(first.updatedAtLabel).not.toBe(second.updatedAtLabel);
+  });
+
+  it("maps attendance summary errors to controlled messages", () => {
+    expect(messageForAttendanceSummaryError(401)).toBe(
+      "Oturumunuz sona ermiş. Tekrar giriş yapın."
+    );
+    expect(messageForAttendanceSummaryError(403)).toBe(
+      "Bu etkinliğin katılım özetini görüntüleme yetkiniz yok."
+    );
+    expect(messageForAttendanceSummaryError(404)).toBe(
+      "Etkinlik bulunamadı veya artık kullanılamıyor."
+    );
+    expect(messageForAttendanceSummaryError(409)).toBe(
+      "Bu etkinlik için katılım özeti henüz kullanılamıyor."
+    );
+    expect(messageForAttendanceSummaryError(500)).toBe(
+      "Katılım verileri alınamadı. Lütfen tekrar deneyin."
+    );
+  });
+
+  it("does not expose raw attendance summary internals in the view", () => {
+    const view = viewForAttendanceSummaryState({
+      kind: "ready",
+      summary: {
+        ...attendanceSummary,
+        event: {
+          ...attendanceSummary.event,
+          id: "event-internal-id"
+        }
+      },
+      loadedAt: "2026-07-23T19:15:00.000Z"
+    });
+
+    const viewText = JSON.stringify(view);
+    expect(viewText).not.toContain("student");
+    expect(viewText).not.toContain("email");
+    expect(viewText).not.toContain("token");
+    expect(viewText).not.toContain("event-internal-id");
+  });
+
+  it("does not apply late attendance summary responses after unmount", () => {
+    expect(shouldApplyAttendanceSummaryResponse(false)).toBe(false);
+    expect(shouldApplyAttendanceSummaryResponse(true)).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AttendanceQrPanel } from "../../attendance-qr-panel";
+import { AttendanceSummaryPanel } from "../../attendance-summary-panel";
 import { EventRegistrationPanel } from "../../event-registration-panel";
 import {
   buildPublicEventsReturnHref,
@@ -133,6 +134,11 @@ export default async function EventDetailPage({ params, searchParams }: EventDet
           </dl>
           <EventRegistrationPanel apiBaseUrl={getApiBaseUrl()} eventId={result.event.id} />
           <AttendanceQrPanel
+            apiBaseUrl={getApiBaseUrl()}
+            eventId={result.event.id}
+            clubId={result.event.club.id}
+          />
+          <AttendanceSummaryPanel
             apiBaseUrl={getApiBaseUrl()}
             eventId={result.event.id}
             clubId={result.event.club.id}

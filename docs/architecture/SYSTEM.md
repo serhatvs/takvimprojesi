@@ -22,6 +22,8 @@ Web public etkinlik detayi `/events/[eventId]` route'u ile sunulur ve `GET /even
 
 Detay sayfasindaki yoklama yonetimi paneli yalniz `/auth/me` principal bilgisindeki `SYSTEM_ADMIN` rolune veya public event club ID'siyle eslesen aktif `ADMIN` kulup uyeligine sahip kullanicilar icin client tarafinda render edilir. Bu kontrol yalniz kullanici deneyimi icindir; `POST /events/:eventId/attendance-token` endpointindeki API authorization zorunlu kalir. Panel tokeni server render sirasinda istemez, QR payload'ini URL, history veya storage'a yazmaz ve ham tokeni yalniz client component state'inde tutar.
 
+Detay sayfasindaki katilim ozeti paneli de ayni `/auth/me` principal bilgisi ve public event club ID'siyle gorunurluk karari verir. Yetkisiz kullanicilar icin `GET /events/:eventId/attendance-summary` istegi hic gonderilmez; API authorization yine zorunlu guvenlik siniri olarak kalir. Panel `credentials: "include"` ve `cache: "no-store"` ile yalniz yetkili kullanici icin veri yukler, otomatik polling yapmaz ve `Verileri Yenile` dugmesiyle tekil refresh saglar. Frontend `absentCount`, `remainingCapacity` ve `attendanceRate` degerlerini yeniden hesaplamaz; backend response'unu tek dogruluk kaynagi kabul edip yalniz Turkce bicimlendirme yapar.
+
 ## Veritabani Yaklasimi
 
 PostgreSQL ana veri deposudur. Prisma schema domain iliskilerini, indeksleri ve benzersizlik kurallarini tanimlar. Migration dosyalari veri etkisi kontrol edilerek uretilmelidir. Tarihler UTC olarak saklanir.
@@ -101,6 +103,8 @@ Detay sayfasindaki QR yoklama paneli yetkili olmayan kullanicilara render edilme
 Ogrenci check-in ekrani da tokeni URL, storage, log, hata mesaji veya DOM metni olarak render etmez. Kamera stream'i component kapanisinda ve basarili tarama sonrasinda durdurulur. Kamera kullanilamayan durumlarda manuel yedek alan yalniz tam QR JSON payload'ini kabul eder; gonderimden sonra alan temizlenir.
 
 Attendance summary response'u yalniz event kimligi/basligi/status/tarih/kapasite ve toplam metrikleri dondurur. Ogrenci adi, e-posta, userId, QR token/hash, audit, review veya katilimci listesi response'a eklenmez.
+
+Web katilim ozeti paneli de yalniz toplam metrikleri render eder. Ogrenci isimleri, e-posta, userId, QR token/hash veya ham API response'u DOM'a yazilmaz; hata durumlari guvenli Turkce mesajlara eslenir.
 
 Public detail sayfasi metadata title degerini etkinlik basligindan, description degerini etkinlik aciklamasinin normalize edilmis ve kisaltilmis ozetinden uretir. Metadata icinde internal alan, kullanici bilgisi veya gizli veri bulunmaz. Ayni request yasam dongusunde metadata ve sayfa verisi icin `cache()` ile tekrar azaltimi uygulanir.
 
