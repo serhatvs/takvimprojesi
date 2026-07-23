@@ -54,3 +54,5 @@
   - Gerekce: Kampus takvimi ilk acilista gelecek etkinlikleri gostermelidir; pagination siniri yanlis veya pahali public sorgulari engeller. Gecmis etkinliklere ihtiyac olursa istemci acik `from` filtresi gonderebilir.
 - Web ana sayfasi public etkinlik listesini `cache: "no-store"` ile okur ve UI pagination icin `pageSize = 12` kullanir.
   - Gerekce: Yayinlanan kampus etkinlikleri ana sayfada gecikmeden gorunmelidir; 12 kart mobil/orta/genis ekran gridleri icin dengeli bir sayfa boyutudur.
+- Web public etkinlik detay sayfasi listeyle tutarli olarak `cache: "no-store"` kullanir ve metadata/page veri tekrarini azaltmak icin request yasam dongusunde `cache()` ile sarilir.
+  - Gerekce: Detay sayfasi yayin durumu ve 404 gorunurluk kurallarini geciktirmeden yansitmalidir; metadata uretimi ayni public veri kaynagini kullanirken gereksiz tekrar cagrilari azaltir.

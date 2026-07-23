@@ -1,5 +1,9 @@
 import { DEFAULT_TIME_ZONE, getApiBaseUrl } from "@agu/config";
-import type { PublicEventListItem, PublicEventListResponse } from "@agu/contracts";
+import type {
+  PublicEventDetailResponse,
+  PublicEventListItem,
+  PublicEventListResponse
+} from "@agu/contracts";
 
 export const PUBLIC_EVENTS_PAGE_SIZE = 12;
 
@@ -10,6 +14,7 @@ export type PublicEventFilters = {
   from: string;
   to: string;
   page: number;
+  pageSize: number;
 };
 
 export type PublicEventsQueryResult =
@@ -41,6 +46,19 @@ export type PublicEventsLoadResult =
       message: string;
     };
 
+export type PublicEventDetailLoadResult =
+  | {
+      status: "success";
+      event: PublicEventDetailResponse;
+    }
+  | {
+      status: "not-found";
+    }
+  | {
+      status: "api-error";
+      message: string;
+    };
+
 export type EventCardViewModel = {
   id: string;
   title: string;
@@ -50,6 +68,19 @@ export type EventCardViewModel = {
   location: string;
   description: string;
   capacityLabel: string | null;
+  statusLabel: "Yayinda";
+};
+
+export type EventDetailViewModel = {
+  id: string;
+  title: string;
+  clubName: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  description: string;
+  capacityLabel: string | null;
+  publishedAtLabel: string | null;
   statusLabel: "Yayinda";
 };
 
@@ -84,6 +115,18 @@ function parsePositivePage(value: string): number {
   return Number(value);
 }
 
+function parsePositivePageSize(value: string): number {
+  if (!value) {
+    return PUBLIC_EVENTS_PAGE_SIZE;
+  }
+
+  if (!/^[1-9]\d*$/.test(value)) {
+    return PUBLIC_EVENTS_PAGE_SIZE;
+  }
+
+  return Number(value);
+}
+
 function isValidDateInput(value: string): boolean {
   if (!value) {
     return true;
@@ -110,7 +153,8 @@ export function parsePublicEventFilters(searchParams: RawSearchParams): PublicEv
     q: firstValue(searchParams.q).trim(),
     from: firstValue(searchParams.from).trim(),
     to: firstValue(searchParams.to).trim(),
-    page: parsePositivePage(firstValue(searchParams.page).trim())
+    page: parsePositivePage(firstValue(searchParams.page).trim()),
+    pageSize: parsePositivePageSize(firstValue(searchParams.pageSize).trim())
   };
 }
 
@@ -133,7 +177,7 @@ export function buildPublicEventsApiPath(filters: PublicEventFilters): PublicEve
 
   const params = new URLSearchParams();
   params.set("page", String(filters.page));
-  params.set("pageSize", String(PUBLIC_EVENTS_PAGE_SIZE));
+  params.set("pageSize", String(filters.pageSize));
 
   if (filters.q) {
     params.set("q", filters.q);
@@ -173,8 +217,45 @@ export function buildPublicEventsPageHref(filters: PublicEventFilters, page: num
     params.set("page", String(page));
   }
 
+  if (filters.pageSize !== PUBLIC_EVENTS_PAGE_SIZE) {
+    params.set("pageSize", String(filters.pageSize));
+  }
+
   const query = params.toString();
   return query ? `/?${query}` : "/";
+}
+
+export function buildPublicEventDetailHref(
+  eventId: string,
+  filters: PublicEventFilters
+): string {
+  const params = new URLSearchParams();
+
+  if (filters.q) {
+    params.set("q", filters.q);
+  }
+
+  if (filters.from) {
+    params.set("from", filters.from);
+  }
+
+  if (filters.to) {
+    params.set("to", filters.to);
+  }
+
+  if (filters.page > 1) {
+    params.set("page", String(filters.page));
+  }
+
+  params.set("pageSize", String(filters.pageSize));
+
+  const query = params.toString();
+  return `/events/${encodeURIComponent(eventId)}${query ? `?${query}` : ""}`;
+}
+
+export function buildPublicEventsReturnHref(searchParams: RawSearchParams): string {
+  const filters = parsePublicEventFilters(searchParams);
+  return buildPublicEventsPageHref(filters, filters.page);
 }
 
 export function formatEventDateTime(isoValue: string): string {
@@ -193,6 +274,67 @@ export function toEventCardViewModel(event: PublicEventListItem): EventCardViewM
     capacityLabel: event.capacity === null ? null : `${event.capacity} kisilik kapasite`,
     statusLabel: "Yayinda"
   };
+}
+
+export function toEventDetailViewModel(event: PublicEventDetailResponse): EventDetailViewModel {
+  return {
+    id: event.id,
+    title: event.title,
+    clubName: event.club.name,
+    startsAt: formatEventDateTime(event.startsAt),
+    endsAt: formatEventDateTime(event.endsAt),
+    location: event.location,
+    description: event.description,
+    capacityLabel: event.capacity === null ? null : `${event.capacity} kisilik kapasite`,
+    publishedAtLabel: event.publishedAt ? formatEventDateTime(event.publishedAt) : null,
+    statusLabel: "Yayinda"
+  };
+}
+
+export function createEventMetadataDescription(description: string): string {
+  const normalized = description.replace(/\s+/g, " ").trim();
+  const maxLength = 155;
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+export async function loadPublicEventDetail(
+  eventId: string
+): Promise<PublicEventDetailLoadResult> {
+  if (!eventId.trim()) {
+    return { status: "not-found" };
+  }
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/events/${encodeURIComponent(eventId)}`, {
+      cache: "no-store"
+    });
+
+    if (response.status === 404) {
+      return { status: "not-found" };
+    }
+
+    if (!response.ok) {
+      return {
+        status: "api-error",
+        message: "Etkinlik detayi su anda alinamiyor."
+      };
+    }
+
+    return {
+      status: "success",
+      event: (await response.json()) as PublicEventDetailResponse
+    };
+  } catch {
+    return {
+      status: "api-error",
+      message: "API baglantisi kurulamadigi icin etkinlik detayi gosterilemiyor."
+    };
+  }
 }
 
 export async function loadPublicEvents(

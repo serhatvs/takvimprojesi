@@ -4,6 +4,7 @@ import { StatusBadge } from "@agu/ui";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
+  buildPublicEventDetailHref,
   buildPublicEventsPageHref,
   loadPublicEvents,
   toEventCardViewModel,
@@ -123,7 +124,14 @@ export default async function HomePage({
                       <p>{card.clubName}</p>
                       <StatusBadge tone="success">{card.statusLabel}</StatusBadge>
                     </div>
-                    <h3>{card.title}</h3>
+                    <h3>
+                      <Link
+                        className="event-card-link"
+                        href={buildPublicEventDetailHref(card.id, publicEvents.filters)}
+                      >
+                        {card.title}
+                      </Link>
+                    </h3>
                     <dl className="event-meta">
                       <div>
                         <dt>Başlangıç</dt>

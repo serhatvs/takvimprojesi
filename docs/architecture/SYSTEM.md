@@ -18,6 +18,8 @@ Public etkinlik kesfi `GET /events` ve `GET /events/:eventId` endpointleriyle au
 
 Web ana sayfasi public etkinlik listesini server component icinde `GET /events` uzerinden okur. Arama, tarih araligi ve sayfalama URL query string ile tasinir; sayfa yenilemesinde filtreler korunur. Public liste fetch'i `cache: "no-store"` ile yapilir; kampus takvimi yayinlanan etkinlik degisikliklerini geciktirmeden gostermeyi onceliklendirir. API erisilemezse sayfa cokmez ve kullaniciya kisa hata durumu gosterilir.
 
+Web public etkinlik detayi `/events/[eventId]` route'u ile sunulur ve `GET /events/:eventId` endpointini kullanir. `eventId` API path'ine encode edilerek aktarilir; liste filtreleri detail URL query string'inde yalniz geri navigasyon icin korunur ve detail API istegine eklenmez. API `404` donerse Next.js `notFound()` mekanizmasi kullanilir ve public olmayan etkinliklerin varligi ifsa edilmez. API baglanti veya `5xx` hatalari `404` olarak gosterilmez; kontrollu hata durumu ve listeye donus baglantisi render edilir.
+
 ## Veritabani Yaklasimi
 
 PostgreSQL ana veri deposudur. Prisma schema domain iliskilerini, indeksleri ve benzersizlik kurallarini tanimlar. Migration dosyalari veri etkisi kontrol edilerek uretilmelidir. Tarihler UTC olarak saklanir.
@@ -67,6 +69,8 @@ Yalnizca gerekli kullanici bilgileri saklanir. Gizli degerler repoya yazilmaz; `
 Public event response'lari `createdById`, kullanici e-postasi, uyelik bilgisi, review, audit, QR token hash ve internal metadata dondurmez; yalniz takvim ve detay gorunumu icin gerekli event ve kulup alanlarini secer.
 
 Web public etkinlik kartlari da yalniz public response alanlarini render eder: baslik, kulup adi, tarih/saat, konum, aciklama, kapasite ve yayin durumu. Development auth paneli yalniz development ortaminda gorunur ve public liste fetch'inden ayri tutulur.
+
+Public detail sayfasi metadata title degerini etkinlik basligindan, description degerini etkinlik aciklamasinin normalize edilmis ve kisaltilmis ozetinden uretir. Metadata icinde internal alan, kullanici bilgisi veya gizli veri bulunmaz. Ayni request yasam dongusunde metadata ve sayfa verisi icin `cache()` ile tekrar azaltimi uygulanir.
 
 ## Gelecekte AGU SSO Entegrasyon Noktasi
 

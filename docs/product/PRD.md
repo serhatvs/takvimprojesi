@@ -20,6 +20,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Basin Yayin inceleme kayit modeli.
 - Onaylanan etkinliklerin yayinlanmasi ve yayinlanmis etkinliklerin public liste/detay API'leriyle kampus takvimine hazir hale gelmesi.
 - Ana sayfada yayinlanmis ve yaklasan etkinliklerin arama, tarih filtresi ve sayfalama ile listelenmesi.
+- Yayinlanmis etkinlikler icin public detay sayfasinda etkinlik bilgilerini goruntuleme.
 - Ogrenci kaydi ve tekil attendance kaydi icin veri modeli.
 - QR token ham degerini saklamadan katilim dogrulama mimarisi.
 - Audit log ve bildirim adaptoru icin baslangic sinirlari.
@@ -38,7 +39,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Kulup yoneticisi taslak etkinlik olusturur ve Basin Yayin onayina gonderir.
 - Basin Yayin editoru aciklama ekleyerek onaylar, reddeder veya degisiklik ister.
 - Herkes yayinlanmis gelecek etkinlikleri ana sayfadaki kampus takviminde arar, tarih araligina gore filtreler ve listeler.
-- Herkes yayinlanmis bir etkinligin public detayini API uzerinden acar.
+- Herkes yayinlanmis bir etkinligin public detay sayfasini acar ve filtreleri korunmus sekilde listeye donebilir.
 - Ogrenci yayinlanmis etkinlige bir kez kayit olur.
 - Ogrenci etkinlik gunu QR ile yalnizca bir attendance kaydi olusturur.
 - Kulup yoneticisi etkinlik katilim sayilarini gorur.
@@ -47,7 +48,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 
 - Kulup etkinliklerinin onay sureci sistem uzerinden izlenebilir.
 - Gecersiz etkinlik durum gecisleri API servis katmaninda engellenir.
-- Yayinlanan etkinlikler merkezi takvim icin public liste ve detay verisi uretir ve ana sayfada kartlar halinde gorunur.
+- Yayinlanan etkinlikler merkezi takvim icin public liste ve detay verisi uretir, ana sayfada kartlar halinde gorunur ve detay sayfasinda incelenir.
 - Kayit ve attendance tekillik kurallari veritabani tarafinda korunur.
 - Kritik durum degisiklikleri audit log ile geriye donuk incelenebilir.
 

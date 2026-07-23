@@ -215,6 +215,18 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.event-card-link {
+  color: #1f2933;
+  text-decoration-color: #0b6f61;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.event-card-link:focus {
+  outline: 3px solid #80bfff;
+  outline-offset: 3px;
+}
+
 .event-meta {
   display: grid;
   gap: 10px;
@@ -277,6 +289,56 @@ h1 {
   justify-content: space-between;
   gap: 24px;
   padding-top: 24px;
+}
+
+.detail-heading {
+  display: grid;
+  gap: 16px;
+  padding-bottom: 28px;
+}
+
+.detail-heading h1 {
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-heading .secondary-action {
+  width: fit-content;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 24px;
+  border-top: 1px solid #d7dde3;
+  padding-top: 28px;
+}
+
+.detail-content,
+.detail-summary {
+  min-width: 0;
+  border: 1px solid #d7dde3;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 22px;
+}
+
+.detail-content h2 {
+  margin-bottom: 14px;
+  font-size: 1.2rem;
+}
+
+.detail-content p {
+  margin-bottom: 0;
+  color: #33414a;
+  font-size: 1.02rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.detail-meta {
+  gap: 16px;
 }
 
 .health-panel h2 {
@@ -392,6 +454,10 @@ h1 {
   }
 
   .event-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-layout {
     grid-template-columns: 1fr;
   }
 
