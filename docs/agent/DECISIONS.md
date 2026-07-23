@@ -44,3 +44,5 @@
   - Gerekce: Test hesapli giris siniri production'da yanlislikla kullanilabilir olmamalidir; gelecekte AGU SSO adapter'i auth modulunde bu sinirin yerini alacaktir.
 - Taslak etkinlik olusturma kulup ici `ClubMembership.role = ADMIN` yetkisi ister; `SYSTEM_ADMIN` icin acik bypass vardir.
   - Gerekce: Kulup adina etkinlik olusturma kulup yetkisidir; `PRESS_EDITOR` Basin Yayin rolu oldugu icin otomatik kulup temsilcisi sayilmaz. Sistem yoneticisi operasyonel destek icin istisnadir.
+- `DRAFT -> SUBMITTED` gecisi kosullu update ve audit create islemini tek Prisma transaction icinde yapar.
+  - Gerekce: Tekrarli veya eszamanli ikinci submit yalnizca status `DRAFT` degilse basarisiz olur; audit kaydi event status degisikligiyle atomik kalir.

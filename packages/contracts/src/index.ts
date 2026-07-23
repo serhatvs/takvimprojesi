@@ -89,5 +89,20 @@ export interface DraftEventResponse {
   updatedAt: string;
 }
 
+export interface EventResponse {
+  id: string;
+  clubId: string;
+  createdById: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+  status: EventStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

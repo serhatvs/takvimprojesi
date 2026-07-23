@@ -15,7 +15,7 @@
 
 | From | To | Yetkili roller |
 | --- | --- | --- |
-| `DRAFT` | `SUBMITTED` | `CLUB_ADMIN` |
+| `DRAFT` | `SUBMITTED` | `CLUB_ADMIN`, `SYSTEM_ADMIN` |
 | `SUBMITTED` | `CHANGES_REQUESTED` | `PRESS_EDITOR` |
 | `SUBMITTED` | `REJECTED` | `PRESS_EDITOR` |
 | `SUBMITTED` | `APPROVED` | `PRESS_EDITOR` |
@@ -33,5 +33,7 @@
 - Gecisler servis katmaninda `EventLifecycleService` ile dogrulanir.
 - Controller yalnizca request/response sinirini yonetir.
 - Her durum degisikligi `AuditLog` kaydi uretmelidir.
+- `DRAFT -> SUBMITTED` yalnizca mevcut durum `DRAFT` ise yapilir; tekrarli veya eszamanli ikinci submit `409 Conflict` doner.
+- Event status guncellemesi ve `AuditLog` kaydi ayni transaction icinde kalici hale getirilir.
 - Basin Yayin kararlari `EventReview` icinde karar veren kullanici ve aciklama ile saklanir.
 - Kulup yetkisi icin sistem rolunun yaninda ilgili kulupte aktif `ClubMembership` kontrolu gerekir.

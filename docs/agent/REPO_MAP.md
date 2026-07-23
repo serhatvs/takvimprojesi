@@ -18,7 +18,7 @@
 - `apps/web`: Next.js App Router web arayuzu. Giris noktasi `apps/web/app/page.tsx`; gelistirme auth smoke kontrolu `apps/web/app/dev-auth-panel.tsx`.
 - `apps/api`: NestJS REST API. Giris noktasi `apps/api/src/main.ts`.
 - `apps/api/src/auth`: Gelistirme auth endpointleri, session servisi, authentication guard, role guard/decorator, current user decorator ve authorization service siniri.
-- `apps/api/src/events`: Event lifecycle servisi ve `POST /events` taslak etkinlik olusturma controller/service/dto siniri.
+- `apps/api/src/events`: Event lifecycle servisi, `POST /events` taslak etkinlik olusturma ve `POST /events/:eventId/submit` onaya gonderme controller/service/dto siniri.
 - `apps/api/src/prisma`: Prisma client icin Nest provider/modul siniri.
 - `apps/api/prisma/schema.prisma`: Domain veri modeli ve Prisma schema.
 - `apps/api/prisma.config.ts`: Prisma 7 config, root `.env` dosyasini yukler.
@@ -27,7 +27,7 @@
 
 ## Paketler
 
-- `packages/contracts`: Paylasilan API tipleri, auth principal response tipleri, draft event request/response tipleri, roller, etkinlik durumlari ve lifecycle contractlari.
+- `packages/contracts`: Paylasilan API tipleri, auth principal response tipleri, draft/event response tipleri, roller, etkinlik durumlari ve lifecycle contractlari.
 - `packages/config`: Ortak zaman dilimi ve ortam konfigurasyonu yardimcilari.
 - `packages/ui`: Paylasilan React bilesenleri.
 

@@ -1,7 +1,7 @@
 import type { Event } from "@prisma/client";
-import type { DraftEventResponse } from "@agu/contracts";
+import type { DraftEventResponse, EventResponse } from "@agu/contracts";
 
-export function toDraftEventResponse(event: Event): DraftEventResponse {
+export function toEventResponse(event: Event): EventResponse {
   return {
     id: event.id,
     clubId: event.clubId,
@@ -12,8 +12,15 @@ export function toDraftEventResponse(event: Event): DraftEventResponse {
     endsAt: event.endsAt.toISOString(),
     location: event.location,
     capacity: event.capacity,
-    status: "DRAFT",
+    status: event.status,
     createdAt: event.createdAt.toISOString(),
     updatedAt: event.updatedAt.toISOString()
+  };
+}
+
+export function toDraftEventResponse(event: Event): DraftEventResponse {
+  return {
+    ...toEventResponse(event),
+    status: "DRAFT"
   };
 }

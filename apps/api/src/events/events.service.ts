@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException
@@ -9,12 +10,14 @@ import { AuthorizationService } from "../auth/authorization.service";
 import type { Principal } from "../auth/principal";
 import { PrismaService } from "../prisma/prisma.service";
 import type { CreateDraftEventDto, ValidCreateDraftEventInput } from "./dto/create-draft-event.dto";
+import { EventLifecycleService } from "./event-lifecycle.service";
 
 @Injectable()
 export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly authorizationService: AuthorizationService
+    private readonly authorizationService: AuthorizationService,
+    private readonly eventLifecycleService: EventLifecycleService
   ) {}
 
   async createDraftEvent(principal: Principal, dto: CreateDraftEventDto) {
@@ -49,6 +52,77 @@ export class EventsService {
         capacity: input.capacity,
         status: "DRAFT"
       }
+    });
+  }
+
+  async submitDraftEvent(principal: Principal, eventId: string) {
+    this.assertValidEventId(eventId);
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        status: true,
+        createdById: true
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    const canSubmit = await this.authorizationService.canSubmitEventForClub(
+      principal,
+      event.clubId
+    );
+    if (!canSubmit) {
+      throw new ForbiddenException("You are not allowed to submit this event.");
+    }
+
+    const lifecycleRoles = principal.globalRoles.includes("SYSTEM_ADMIN")
+      ? ["SYSTEM_ADMIN" as const]
+      : ["CLUB_ADMIN" as const];
+
+    try {
+      this.eventLifecycleService.assertTransitionAllowed(event.status, "SUBMITTED", lifecycleRoles);
+    } catch {
+      throw new ConflictException("Only draft events can be submitted.");
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const updateResult = await transaction.event.updateMany({
+        where: {
+          id: eventId,
+          status: "DRAFT"
+        },
+        data: {
+          status: "SUBMITTED"
+        }
+      });
+
+      if (updateResult.count !== 1) {
+        throw new ConflictException("Only draft events can be submitted.");
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          actorId: principal.userId,
+          entityType: "Event",
+          entityId: eventId,
+          action: "EVENT_SUBMITTED",
+          before: { status: "DRAFT" },
+          after: { status: "SUBMITTED" },
+          metadata: {
+            clubId: event.clubId,
+            transition: "DRAFT_TO_SUBMITTED"
+          }
+        }
+      });
+
+      return transaction.event.findUniqueOrThrow({
+        where: { id: eventId }
+      });
     });
   }
 
@@ -123,5 +197,16 @@ export class EventsService {
       .slice(0, 80);
 
     return `${slugBase || "event"}-${randomUUID().slice(0, 8)}`;
+  }
+
+  private assertValidEventId(eventId: string): void {
+    if (
+      typeof eventId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        eventId
+      )
+    ) {
+      throw new BadRequestException("eventId must be a valid UUID.");
+    }
   }
 }

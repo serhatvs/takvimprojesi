@@ -30,6 +30,8 @@ Sistem rolleri coklu rol modeliyle tutulur. Kulup icindeki yetki `ClubMembership
 
 Taslak etkinlik olusturma kulup icinde `ADMIN` uyelik rolu gerektirir. `SYSTEM_ADMIN` operasyonel destek icin acik bir bypass'a sahiptir. `PRESS_EDITOR` Basin Yayin inceleme roludur; kulup uyeligi veya sistem adminligi olmadan kulup adina etkinlik olusturamaz.
 
+Taslak etkinligi onaya gonderme yalnizca `DRAFT -> SUBMITTED` gecisini kapsar. Gecis `EventLifecycleService` ile dogrulanir, status guncellemesi kosullu olarak yalnizca mevcut status `DRAFT` iken yapilir ve audit kaydi ayni transaction icinde olusturulur. Tekrarli veya eszamanli ikinci submit `409 Conflict` ile sonuclanir.
+
 ## QR Katilim Yaklasimi
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.
@@ -41,6 +43,8 @@ QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurl
 ## Audit Log Yaklasimi
 
 Durum degisiklikleri ve kritik operasyonlar `AuditLog` ile izlenir. Log kaydi actor, entity, action, onceki/sonraki deger ve metadata alanlarini tasir. Audit log islemle ayni transaction icinde yazilmalidir.
+
+`DRAFT -> SUBMITTED` submit isleminde audit action `EVENT_SUBMITTED`, entity `Event`, onceki status `DRAFT`, yeni status `SUBMITTED` ve actor kullanici kimligi tutulur. Cookie, token veya secret audit metadata'sina yazilmaz.
 
 ## Guvenlik ve Kisisel Veri Minimizasyonu
 

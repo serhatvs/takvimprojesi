@@ -7,7 +7,7 @@ export type EventTransition = {
 };
 
 export const EVENT_TRANSITIONS: readonly EventTransition[] = [
-  { from: "DRAFT", to: "SUBMITTED", roles: ["CLUB_ADMIN"] },
+  { from: "DRAFT", to: "SUBMITTED", roles: ["CLUB_ADMIN", "SYSTEM_ADMIN"] },
   { from: "SUBMITTED", to: "CHANGES_REQUESTED", roles: ["PRESS_EDITOR"] },
   { from: "SUBMITTED", to: "REJECTED", roles: ["PRESS_EDITOR"] },
   { from: "SUBMITTED", to: "APPROVED", roles: ["PRESS_EDITOR"] },
