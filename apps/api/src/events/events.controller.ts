@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { AuthenticationGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { Principal } from "../auth/principal";
 import type { CreateDraftEventDto } from "./dto/create-draft-event.dto";
 import type { PublicEventsQueryDto } from "./dto/public-events-query.dto";
 import type { ReviewEventDto } from "./dto/review-event.dto";
+import type { UpdateEventRevisionDto } from "./dto/update-event-revision.dto";
 import {
   toAttendanceResponse,
   toAttendanceTokenResponse,
@@ -34,6 +35,26 @@ export class EventsController {
   async getPublicEvent(@Param("eventId") eventId: string) {
     const event = await this.eventsService.getPublicEvent(eventId);
     return toPublicEventDetailResponse(event);
+  }
+
+  @Get(":eventId/revision")
+  @UseGuards(AuthenticationGuard)
+  async getEventRevision(
+    @CurrentUser() principal: Principal,
+    @Param("eventId") eventId: string
+  ) {
+    return this.eventsService.getEventRevision(principal, eventId);
+  }
+
+  @Patch(":eventId/revision")
+  @UseGuards(AuthenticationGuard)
+  async updateEventRevision(
+    @CurrentUser() principal: Principal,
+    @Param("eventId") eventId: string,
+    @Body() body: UpdateEventRevisionDto
+  ) {
+    const event = await this.eventsService.updateEventRevision(principal, eventId, body);
+    return toEventResponse(event);
   }
 
   @Get(":eventId/registration")

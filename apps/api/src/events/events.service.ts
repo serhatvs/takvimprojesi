@@ -162,14 +162,16 @@ export class EventsService {
     try {
       this.eventLifecycleService.assertTransitionAllowed(event.status, "SUBMITTED", lifecycleRoles);
     } catch {
-      throw new ConflictException("Only draft events can be submitted.");
+      throw new ConflictException("Only draft or changes_requested events can be submitted.");
     }
+
+    const previousStatus = event.status;
 
     return this.prisma.$transaction(async (transaction) => {
       const updateResult = await transaction.event.updateMany({
         where: {
           id: eventId,
-          status: "DRAFT"
+          status: previousStatus
         },
         data: {
           status: "SUBMITTED"
@@ -177,20 +179,22 @@ export class EventsService {
       });
 
       if (updateResult.count !== 1) {
-        throw new ConflictException("Only draft events can be submitted.");
+        throw new ConflictException("Only draft or changes_requested events can be submitted.");
       }
+
+      const auditAction = previousStatus === "CHANGES_REQUESTED" ? "EVENT_RESUBMITTED" : "EVENT_SUBMITTED";
 
       await transaction.auditLog.create({
         data: {
           actorId: principal.userId,
           entityType: "Event",
           entityId: eventId,
-          action: "EVENT_SUBMITTED",
-          before: { status: "DRAFT" },
+          action: auditAction,
+          before: { status: previousStatus },
           after: { status: "SUBMITTED" },
           metadata: {
             clubId: event.clubId,
-            transition: "DRAFT_TO_SUBMITTED"
+            transition: `${previousStatus}_TO_SUBMITTED`
           }
         }
       });
@@ -199,6 +203,177 @@ export class EventsService {
         where: { id: eventId }
       });
     });
+  }
+
+  async getEventRevision(principal: Principal, eventId: string) {
+    this.assertValidEventId(eventId);
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        title: true,
+        description: true,
+        status: true,
+        startsAt: true,
+        endsAt: true,
+        location: true,
+        capacity: true,
+        createdAt: true,
+        updatedAt: true,
+        club: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    const canManage = await this.authorizationService.canManageClub(principal, event.clubId);
+    if (!canManage) {
+      throw new ForbiddenException("You are not allowed to access this event revision.");
+    }
+
+    if (event.status !== "CHANGES_REQUESTED") {
+      throw new ConflictException("Event is not in CHANGES_REQUESTED status.");
+    }
+
+    const latestReview = await this.prisma.eventReview.findFirst({
+      where: {
+        eventId,
+        decision: "CHANGES_REQUESTED"
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        comment: true,
+        createdAt: true
+      }
+    });
+
+    return {
+      event: {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        status: "CHANGES_REQUESTED" as const,
+        startsAt: event.startsAt.toISOString(),
+        endsAt: event.endsAt.toISOString(),
+        location: event.location,
+        capacity: event.capacity,
+        createdAt: event.createdAt.toISOString(),
+        updatedAt: event.updatedAt.toISOString(),
+        club: {
+          id: event.club.id,
+          name: event.club.name
+        }
+      },
+      latestChangeRequest: latestReview
+        ? {
+            comment: latestReview.comment,
+            createdAt: latestReview.createdAt.toISOString()
+          }
+        : null
+    };
+  }
+
+  async updateEventRevision(
+    principal: Principal,
+    eventId: string,
+    dto: import("./dto/update-event-revision.dto").UpdateEventRevisionDto
+  ) {
+    this.assertValidEventId(eventId);
+    const input = this.validateUpdateEventRevision(dto);
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        status: true
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    const canManage = await this.authorizationService.canManageClub(principal, event.clubId);
+    if (!canManage) {
+      throw new ForbiddenException("You are not allowed to edit this event revision.");
+    }
+
+    if (event.status !== "CHANGES_REQUESTED") {
+      throw new ConflictException("Event is not in CHANGES_REQUESTED status.");
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const updateResult = await transaction.event.updateMany({
+        where: {
+          id: eventId,
+          status: "CHANGES_REQUESTED"
+        },
+        data: {
+          title: input.title,
+          description: input.description,
+          startsAt: input.startsAt,
+          endsAt: input.endsAt,
+          location: input.location,
+          capacity: input.capacity
+        }
+      });
+
+      if (updateResult.count !== 1) {
+        throw new ConflictException("Event is not in CHANGES_REQUESTED status.");
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          actorId: principal.userId,
+          entityType: "Event",
+          entityId: eventId,
+          action: "EVENT_REVISION_UPDATED",
+          before: { status: "CHANGES_REQUESTED" },
+          after: { status: "CHANGES_REQUESTED" },
+          metadata: {
+            updatedFields: ["title", "description", "startsAt", "endsAt", "location", "capacity"]
+          }
+        }
+      });
+
+      return transaction.event.findUniqueOrThrow({
+        where: { id: eventId }
+      });
+    });
+  }
+
+  private validateUpdateEventRevision(
+    dto: import("./dto/update-event-revision.dto").UpdateEventRevisionDto
+  ): import("./dto/update-event-revision.dto").ValidUpdateEventRevisionInput {
+    const title = this.requiredString(dto.title, "title");
+    const description = this.requiredString(dto.description, "description");
+    const location = this.requiredString(dto.location, "location");
+    const startsAt = this.requiredIsoDate(dto.startsAt, "startsAt");
+    const endsAt = this.requiredIsoDate(dto.endsAt, "endsAt");
+    const capacity = this.optionalPositiveInteger(dto.capacity, "capacity");
+
+    if (startsAt >= endsAt) {
+      throw new BadRequestException("startsAt must be before endsAt.");
+    }
+
+    return {
+      title,
+      description,
+      startsAt,
+      endsAt,
+      location,
+      capacity
+    };
   }
 
   async reviewEvent(

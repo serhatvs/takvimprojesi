@@ -1,10 +1,8 @@
 # AGU Kampus Takvimi Handoff
 
-Bu belge, onceki sohbet gecmisine ihtiyac duymadan AGU Kampus Takvimi repository'sinde kaldigi yerden devam etmek icin ana devir kaynagidir. Mevcut baseline commit:
+Bu belge, onceki sohbet gecmisine ihtiyac duymadan AGU Kampus Takvimi repository'sinde kaldigi yerden devam etmek icin ana devir kaynagidir.
 
-```text
-ecc049a feat: add attendance summary panel
-```
+Completed flow: Etkinlik oluşturma, incelemeye gönderme, Basın Yayın kararları, yayınlama akışı, kulüp yönetim paneli, Basın Yayın dashboard'u ve CHANGES_REQUESTED revizyon ve yeniden incelemeye gönderme akışı tamamlandı.
 
 ## 1. Projenin Amaci
 

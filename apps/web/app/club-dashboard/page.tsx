@@ -105,6 +105,16 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
                     />
                   </div>
                 )}
+                {item.status === "CHANGES_REQUESTED" && (
+                  <div className="event-card-actions" style={{ marginTop: "var(--spacing-3)" }}>
+                    <Link
+                      href={`/club-dashboard/events/${encodeURIComponent(item.id)}/edit?clubId=${encodeURIComponent(selectedClubId)}${filters.status ? `&status=${encodeURIComponent(filters.status)}` : ""}${filters.q ? `&q=${encodeURIComponent(filters.q)}` : ""}${pagination.page > 1 ? `&page=${pagination.page}` : ""}`}
+                      className="primary-action"
+                    >
+                      Düzenle ve Yeniden Gönder
+                    </Link>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -203,6 +213,12 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
           <Link href="/" className="secondary-action">Ana Sayfaya Dön</Link>
         </div>
       </header>
+
+      {resolvedParams.notice === "resubmitted" && (
+        <div className="notice-panel" data-tone="success" role="status" aria-live="polite" style={{ marginBottom: "var(--spacing-4)" }}>
+          <p>Etkinlik güncellendi ve yeniden incelemeye gönderildi.</p>
+        </div>
+      )}
 
       <section className="club-selection">
         <h2 className="section-heading">Kulüpler</h2>

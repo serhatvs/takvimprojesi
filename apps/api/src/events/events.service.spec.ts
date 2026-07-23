@@ -69,6 +69,7 @@ const validAttendanceTokenHash =
 type CreateServiceOptions = {
   canCreate?: boolean;
   canSubmit?: boolean;
+  canManage?: boolean;
   canReview?: boolean;
   canPublish?: boolean;
   canIssueAttendanceToken?: boolean;
@@ -79,6 +80,7 @@ type CreateServiceOptions = {
   updatedStatus?: string;
   auditFails?: boolean;
   reviewFails?: boolean;
+  revisionReview?: { comment: string; createdAt: Date } | null;
   publicItems?: PublicEventRecord[];
   publicDetail?: PublicEventRecord | null;
   publicCount?: number;
@@ -111,6 +113,7 @@ type CreateServiceOptions = {
 function createService({
   canCreate = true,
   canSubmit = true,
+  canManage = true,
   canReview = true,
   canPublish = true,
   canIssueAttendanceToken = true,
@@ -121,6 +124,7 @@ function createService({
   updatedStatus = "SUBMITTED",
   auditFails = false,
   reviewFails = false,
+  revisionReview,
   publicItems = [],
   publicDetail = null,
   publicCount = publicItems.length,
@@ -184,8 +188,35 @@ function createService({
     club: {
       findFirst: vi.fn().mockResolvedValue(clubExists ? { id: "club-id" } : null)
     },
+    eventReview: {
+      findFirst: vi.fn().mockResolvedValue(
+        revisionReview === undefined
+          ? { comment: "Lütfen mekan bilgilerini güncelleyin.", createdAt: new Date("2026-07-23T14:00:00.000Z") }
+          : revisionReview
+      )
+    },
     event: {
       findUnique: vi.fn().mockImplementation((args) => {
+        if (args?.select?.createdAt) {
+          return Promise.resolve({
+            id: "11111111-1111-4111-8111-111111111111",
+            clubId: "club-id",
+            title: "Revision Event",
+            description: "Revision description",
+            status: existingStatus,
+            startsAt: new Date("2026-08-10T11:00:00.000Z"),
+            endsAt: new Date("2026-08-10T13:00:00.000Z"),
+            location: "AGU Amfi",
+            capacity: 100,
+            createdAt: new Date("2026-07-23T12:00:00.000Z"),
+            updatedAt: new Date("2026-07-23T12:00:00.000Z"),
+            club: {
+              id: "club-id",
+              name: "Yazilim Kulubu"
+            }
+          });
+        }
+
         if (args?.select?.title) {
           return Promise.resolve(
             attendanceSummaryEvent
@@ -224,20 +255,45 @@ function createService({
       create: vi.fn().mockResolvedValue(createdEvent)
     },
     eventRegistration: {
-      findUnique: vi.fn().mockResolvedValue(
-        registrationStatusRegistration
-          ? {
-              id: "registration-id",
-              eventId: "11111111-1111-4111-8111-111111111111",
-              userId: "student-id",
-              registeredAt: new Date("2026-07-23T12:00:00.000Z")
-            }
-          : null
-      ),
-      count: vi.fn().mockResolvedValue(attendanceSummaryRegistrationCount)
+      findUnique: vi.fn().mockImplementation((args) => {
+        if (args?.select?.cancelledAt) {
+          return Promise.resolve(
+            attendanceRegistered ? { id: "registration-id", cancelledAt: null } : null
+          );
+        }
+
+        if (registrationStatusRegistration) {
+          return Promise.resolve({
+            id: "registration-id",
+            eventId: "11111111-1111-4111-8111-111111111111",
+            userId: "student-id",
+            registeredAt: new Date("2026-07-23T12:00:00.000Z")
+          });
+        }
+
+        return Promise.resolve(existingRegistration ? { id: "registration-id" } : null);
+      }),
+      count: registrationCounts ? registrationCountMock : vi.fn().mockResolvedValue(attendanceSummaryRegistrationCount),
+      create: registrationCreateFailsUnique
+        ? vi.fn().mockRejectedValue({ code: "P2002" })
+        : vi.fn().mockImplementation(({ data }) => ({
+            id: "registration-id",
+            eventId: data.eventId,
+            userId: data.userId,
+            registeredAt: new Date("2026-07-23T12:00:00.000Z")
+          }))
     },
     attendance: {
-      count: vi.fn().mockResolvedValue(attendanceSummaryAttendanceCount)
+      count: vi.fn().mockResolvedValue(attendanceSummaryAttendanceCount),
+      create: attendanceCreateFailsUnique
+        ? vi.fn().mockRejectedValue({ code: "P2002" })
+        : vi.fn().mockImplementation(({ data }) => ({
+            id: "attendance-id",
+            eventId: data.eventId,
+            userId: data.userId,
+            checkedInAt: new Date("2026-07-23T12:00:00.000Z"),
+            source: data.source
+          }))
     },
     $transaction: vi.fn(async (input) => {
       if (Array.isArray(input)) {
@@ -331,6 +387,7 @@ function createService({
   const authorization = {
     canCreateEventForClub: vi.fn().mockResolvedValue(canCreate),
     canSubmitEventForClub: vi.fn().mockResolvedValue(canSubmit),
+    canManageClub: vi.fn().mockResolvedValue(canManage),
     canReviewEvents: vi.fn().mockReturnValue(canReview),
     canPublishEvents: vi.fn().mockReturnValue(canPublish),
     canIssueAttendanceTokenForClub: vi.fn().mockResolvedValue(canIssueAttendanceToken),
@@ -338,7 +395,7 @@ function createService({
   };
   const lifecycle = {
     assertTransitionAllowed: vi.fn((from: string, to: string) => {
-      if (from === "DRAFT" && to === "SUBMITTED") {
+      if ((from === "DRAFT" || from === "CHANGES_REQUESTED") && to === "SUBMITTED") {
         return;
       }
       if (
@@ -1582,5 +1639,198 @@ describe("EventsService", () => {
     await expect(
       service.publishEvent(pressEditor, "11111111-1111-4111-8111-111111111111")
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  describe("getEventRevision", () => {
+    it("throws BadRequestException for invalid eventId", async () => {
+      const { service } = createService();
+      await expect(service.getEventRevision(clubAdmin, "invalid-uuid")).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+
+    it("throws NotFoundException when event is missing", async () => {
+      const { service, prisma } = createService();
+      prisma.event.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.getEventRevision(clubAdmin, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("throws ForbiddenException when actor cannot manage club", async () => {
+      const { service } = createService({ canManage: false });
+      await expect(
+        service.getEventRevision(student, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("throws ConflictException when event status is not CHANGES_REQUESTED", async () => {
+      const { service } = createService({ existingStatus: "DRAFT" });
+      await expect(
+        service.getEventRevision(clubAdmin, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("returns event revision detail and latest change request review", async () => {
+      const { service } = createService({ existingStatus: "CHANGES_REQUESTED" });
+      const res = await service.getEventRevision(clubAdmin, "11111111-1111-4111-8111-111111111111");
+
+      expect(res.event.id).toBe("11111111-1111-4111-8111-111111111111");
+      expect(res.event.status).toBe("CHANGES_REQUESTED");
+      expect(res.event.club.name).toBe("Yazilim Kulubu");
+      expect(res.latestChangeRequest?.comment).toBe("Lütfen mekan bilgilerini güncelleyin.");
+    });
+  });
+
+  describe("updateEventRevision", () => {
+    const validRevisionDto = {
+      title: "Updated Title",
+      description: "Updated Description",
+      startsAt: "2026-08-10T14:00:00.000Z",
+      endsAt: "2026-08-10T16:00:00.000Z",
+      location: "AGU Amfi 2",
+      capacity: 150
+    };
+
+    it("throws BadRequestException for invalid eventId or invalid body dates", async () => {
+      const { service } = createService();
+      await expect(
+        service.updateEventRevision(clubAdmin, "invalid-uuid", validRevisionDto)
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      await expect(
+        service.updateEventRevision(clubAdmin, "11111111-1111-4111-8111-111111111111", {
+          ...validRevisionDto,
+          startsAt: "2026-08-10T17:00:00.000Z",
+          endsAt: "2026-08-10T16:00:00.000Z"
+        })
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws NotFoundException when event does not exist", async () => {
+      const { service, prisma } = createService();
+      prisma.event.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.updateEventRevision(clubAdmin, "11111111-1111-4111-8111-111111111111", validRevisionDto)
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("throws ForbiddenException when user cannot manage club", async () => {
+      const { service } = createService({ canManage: false });
+      await expect(
+        service.updateEventRevision(student, "11111111-1111-4111-8111-111111111111", validRevisionDto)
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("throws ConflictException when event status is not CHANGES_REQUESTED", async () => {
+      const { service } = createService({ existingStatus: "SUBMITTED" });
+      await expect(
+        service.updateEventRevision(clubAdmin, "11111111-1111-4111-8111-111111111111", validRevisionDto)
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("updates revision and creates EVENT_REVISION_UPDATED audit log atomically", async () => {
+      const calls: string[] = [];
+      const transactionClient = {
+        event: {
+          updateMany: vi.fn(async () => {
+            calls.push("update");
+            return { count: 1 };
+          }),
+          findUniqueOrThrow: vi.fn(async () => {
+            calls.push("read");
+            return { id: "11111111-1111-4111-8111-111111111111", status: "CHANGES_REQUESTED" };
+          })
+        },
+        auditLog: {
+          create: vi.fn(async () => {
+            calls.push("audit");
+            return { id: "audit-id" };
+          })
+        }
+      };
+      const { service, prisma } = createService({ existingStatus: "CHANGES_REQUESTED" });
+      prisma.$transaction.mockImplementationOnce(async (cb) => cb(transactionClient));
+
+      await service.updateEventRevision(
+        clubAdmin,
+        "11111111-1111-4111-8111-111111111111",
+        validRevisionDto
+      );
+
+      expect(calls).toEqual(["update", "audit", "read"]);
+      expect(transactionClient.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorId: "club-admin-id",
+          entityType: "Event",
+          entityId: "11111111-1111-4111-8111-111111111111",
+          action: "EVENT_REVISION_UPDATED"
+        })
+      });
+    });
+  });
+
+  describe("submitDraftEvent resubmission extension", () => {
+    it("allows resubmission from CHANGES_REQUESTED to SUBMITTED and logs EVENT_RESUBMITTED", async () => {
+      const calls: string[] = [];
+      const transactionClient = {
+        event: {
+          updateMany: vi.fn(async () => {
+            calls.push("update");
+            return { count: 1 };
+          }),
+          findUniqueOrThrow: vi.fn(async () => {
+            calls.push("read");
+            return { id: "11111111-1111-4111-8111-111111111111", status: "SUBMITTED" };
+          })
+        },
+        auditLog: {
+          create: vi.fn(async () => {
+            calls.push("audit");
+            return { id: "audit-id" };
+          })
+        }
+      };
+      const { service, prisma } = createService({ existingStatus: "CHANGES_REQUESTED" });
+      prisma.$transaction.mockImplementationOnce(async (cb) => cb(transactionClient));
+
+      await service.submitDraftEvent(clubAdmin, "11111111-1111-4111-8111-111111111111");
+
+      expect(calls).toEqual(["update", "audit", "read"]);
+      expect(transactionClient.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: "EVENT_RESUBMITTED",
+          before: { status: "CHANGES_REQUESTED" },
+          after: { status: "SUBMITTED" }
+        })
+      });
+    });
+
+    it("allows SYSTEM_ADMIN to resubmit a CHANGES_REQUESTED event", async () => {
+      const { service } = createService({ existingStatus: "CHANGES_REQUESTED" });
+      const result = await service.submitDraftEvent(
+        systemAdmin,
+        "11111111-1111-4111-8111-111111111111"
+      );
+      expect(result).toBeDefined();
+    });
+
+    it("rejects resubmission for ineligible statuses with ConflictException (409)", async () => {
+      const invalidStatuses = [
+        "SUBMITTED",
+        "REJECTED",
+        "APPROVED",
+        "PUBLISHED",
+        "CANCELLED",
+        "COMPLETED"
+      ];
+
+      for (const status of invalidStatuses) {
+        const { service } = createService({ existingStatus: status });
+        await expect(
+          service.submitDraftEvent(clubAdmin, "11111111-1111-4111-8111-111111111111")
+        ).rejects.toBeInstanceOf(ConflictException);
+      }
+    });
   });
 });

@@ -19,7 +19,7 @@
 | `SUBMITTED` | `CHANGES_REQUESTED` | `PRESS_EDITOR`, `SYSTEM_ADMIN` |
 | `SUBMITTED` | `REJECTED` | `PRESS_EDITOR`, `SYSTEM_ADMIN` |
 | `SUBMITTED` | `APPROVED` | `PRESS_EDITOR`, `SYSTEM_ADMIN` |
-| `CHANGES_REQUESTED` | `SUBMITTED` | `CLUB_ADMIN` |
+| `CHANGES_REQUESTED` | `SUBMITTED` | `CLUB_ADMIN`, `SYSTEM_ADMIN` |
 | `APPROVED` | `PUBLISHED` | `PRESS_EDITOR`, `SYSTEM_ADMIN` |
 | `PUBLISHED` | `COMPLETED` | `CLUB_ADMIN`, `SYSTEM_ADMIN` |
 | `DRAFT` | `CANCELLED` | `CLUB_ADMIN` |
@@ -33,7 +33,8 @@
 - Gecisler servis katmaninda `EventLifecycleService` ile dogrulanir.
 - Controller yalnizca request/response sinirini yonetir.
 - Her durum degisikligi `AuditLog` kaydi uretmelidir.
-- `DRAFT -> SUBMITTED` yalnizca mevcut durum `DRAFT` ise yapilir; tekrarli veya eszamanli ikinci submit `409 Conflict` doner.
+- `DRAFT -> SUBMITTED` ve `CHANGES_REQUESTED -> SUBMITTED` yalnizca mevcut durum `DRAFT` veya `CHANGES_REQUESTED` ise yapilir; tekrarli veya eszamanli ikinci submit `409 Conflict` doner.
+- `CHANGES_REQUESTED -> SUBMITTED` resubmission işlemi `EVENT_RESUBMITTED` audit kaydı oluşturur.
 - Event status guncellemesi ve `AuditLog` kaydi ayni transaction icinde kalici hale getirilir.
 - `SUBMITTED -> CHANGES_REQUESTED|REJECTED|APPROVED` Basin Yayin inceleme gecisleri yalnizca mevcut durum `SUBMITTED` ise yapilir; tekrarli veya eszamanli ikinci karar `409 Conflict` doner.
 - Basin Yayin kararlari `EventReview` icinde karar veren kullanici, karar ve aciklama ile saklanir; event status guncellemesi, review ve audit kaydi ayni transaction icinde kalici hale getirilir.

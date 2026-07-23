@@ -19,6 +19,23 @@ export function parseLocalToIstanbulUtc(localDateTimeString: string): string {
   return dateWithOffset.toISOString();
 }
 
+export function parseUtcToIstanbulLocal(isoString: string): string {
+  if (!isoString || typeof isoString !== "string") {
+    return "";
+  }
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) {
+    return "";
+  }
+  const istanbulDate = new Date(d.getTime() + 3 * 60 * 60 * 1000);
+  const year = istanbulDate.getUTCFullYear();
+  const month = String(istanbulDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(istanbulDate.getUTCDate()).padStart(2, "0");
+  const hours = String(istanbulDate.getUTCHours()).padStart(2, "0");
+  const minutes = String(istanbulDate.getUTCMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export function validateCapacity(capacityRaw: string): { valid: boolean; value?: number; error?: string } {
   if (!capacityRaw || capacityRaw.trim() === "") {
     return { valid: true };

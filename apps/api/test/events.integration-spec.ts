@@ -1762,6 +1762,192 @@ describe("POST /events", () => {
       after: { status: decision }
     });
   }
+
+  describe("GET /events/:eventId/revision", () => {
+    it("returns 401 without auth cookie", async () => {
+      await request(app.getHttpServer())
+        .get("/events/11111111-1111-4111-8111-111111111111/revision")
+        .expect(401);
+    });
+
+    it("returns 400 for invalid UUID", async () => {
+      await request(app.getHttpServer())
+        .get("/events/invalid-uuid/revision")
+        .set("Cookie", clubAdminCookie)
+        .expect(400);
+    });
+
+    it("returns 404 for non-existent event", async () => {
+      await request(app.getHttpServer())
+        .get("/events/99999999-9999-4999-8999-999999999999/revision")
+        .set("Cookie", clubAdminCookie)
+        .expect(404);
+    });
+
+    it("returns 403 for student or unauthorized user", async () => {
+      const event = await createDraftEventInDb(clubId, "DRAFT");
+      await request(app.getHttpServer())
+        .get(`/events/${event.id}/revision`)
+        .set("Cookie", studentCookie)
+        .expect(403);
+    });
+
+    it("returns 409 when event status is not CHANGES_REQUESTED", async () => {
+      const event = await createDraftEventInDb(clubId, "DRAFT");
+      await request(app.getHttpServer())
+        .get(`/events/${event.id}/revision`)
+        .set("Cookie", clubAdminCookie)
+        .expect(409);
+    });
+
+    it("returns 200 with revision detail and latest change request for active club ADMIN", async () => {
+      const event = await createDraftEventInDb(clubId, "CHANGES_REQUESTED");
+      await prisma.eventReview.create({
+        data: {
+          eventId: event.id,
+          reviewerId: pressEditorId,
+          decision: "CHANGES_REQUESTED",
+          comment: "Açıklamayı daha detaylı yazınız."
+        }
+      });
+
+      const response = await request(app.getHttpServer())
+        .get(`/events/${event.id}/revision`)
+        .set("Cookie", clubAdminCookie)
+        .expect(200);
+
+      expect(response.body.event).toMatchObject({
+        id: event.id,
+        status: "CHANGES_REQUESTED",
+        title: event.title
+      });
+      expect(response.body.latestChangeRequest).toMatchObject({
+        comment: "Açıklamayı daha detaylı yazınız."
+      });
+    });
+  });
+
+  describe("PATCH /events/:eventId/revision", () => {
+    it("returns 401 without auth", async () => {
+      await request(app.getHttpServer())
+        .patch("/events/11111111-1111-4111-8111-111111111111/revision")
+        .send({})
+        .expect(401);
+    });
+
+    it("returns 400 for invalid body or endsAt <= startsAt", async () => {
+      const event = await createDraftEventInDb(clubId, "CHANGES_REQUESTED");
+      await request(app.getHttpServer())
+        .patch(`/events/${event.id}/revision`)
+        .set("Cookie", clubAdminCookie)
+        .send({
+          title: "Valid Title",
+          description: "Valid Description",
+          startsAt: "2026-08-10T16:00:00+03:00",
+          endsAt: "2026-08-10T14:00:00+03:00",
+          location: "AGU Amfi"
+        })
+        .expect(400);
+    });
+
+    it("returns 409 if status is not CHANGES_REQUESTED", async () => {
+      const event = await createDraftEventInDb(clubId, "SUBMITTED");
+      await request(app.getHttpServer())
+        .patch(`/events/${event.id}/revision`)
+        .set("Cookie", clubAdminCookie)
+        .send({
+          title: "Updated Title",
+          description: "Updated Description",
+          startsAt: "2026-08-10T14:00:00+03:00",
+          endsAt: "2026-08-10T16:00:00+03:00",
+          location: "AGU Amfi 2",
+          capacity: 120
+        })
+        .expect(409);
+    });
+
+    it("updates revision and creates EVENT_REVISION_UPDATED audit log for club ADMIN", async () => {
+      const event = await createDraftEventInDb(clubId, "CHANGES_REQUESTED");
+      const res = await request(app.getHttpServer())
+        .patch(`/events/${event.id}/revision`)
+        .set("Cookie", clubAdminCookie)
+        .send({
+          title: "Revised Title",
+          description: "Revised Description",
+          startsAt: "2026-08-10T15:00:00+03:00",
+          endsAt: "2026-08-10T17:00:00+03:00",
+          location: "AGU Lab 1",
+          capacity: 80
+        })
+        .expect(200);
+
+      expect(res.body.title).toBe("Revised Title");
+      expect(res.body.capacity).toBe(80);
+
+      const updatedDb = await prisma.event.findUnique({ where: { id: event.id } });
+      expect(updatedDb?.title).toBe("Revised Title");
+
+      const audits = await prisma.auditLog.findMany({
+        where: { entityType: "Event", entityId: event.id, action: "EVENT_REVISION_UPDATED" }
+      });
+      expect(audits).toHaveLength(1);
+    });
+  });
+
+  describe("POST /events/:eventId/submit resubmission extension", () => {
+    it("resubmits CHANGES_REQUESTED event to SUBMITTED and logs EVENT_RESUBMITTED audit", async () => {
+      const event = await createDraftEventInDb(clubId, "CHANGES_REQUESTED");
+      const res = await request(app.getHttpServer())
+        .post(`/events/${event.id}/submit`)
+        .set("Cookie", clubAdminCookie)
+        .expect(200);
+
+      expect(res.body.status).toBe("SUBMITTED");
+
+      const dbEvent = await prisma.event.findUnique({ where: { id: event.id } });
+      expect(dbEvent?.status).toBe("SUBMITTED");
+
+      const audits = await prisma.auditLog.findMany({
+        where: { entityType: "Event", entityId: event.id, action: "EVENT_RESUBMITTED" }
+      });
+      expect(audits).toHaveLength(1);
+    });
+
+    it("allows SYSTEM_ADMIN to resubmit a CHANGES_REQUESTED event", async () => {
+      const event = await createDraftEventInDb(clubId, "CHANGES_REQUESTED");
+      await request(app.getHttpServer())
+        .post(`/events/${event.id}/submit`)
+        .set("Cookie", systemAdminCookie)
+        .expect(200);
+    });
+
+    it("returns 409 for invalid starting statuses", async () => {
+      const invalidStatuses = ["SUBMITTED", "REJECTED", "APPROVED", "PUBLISHED", "CANCELLED", "COMPLETED"] as const;
+      for (const status of invalidStatuses) {
+        const event = await createDraftEventInDb(clubId, status);
+        await request(app.getHttpServer())
+          .post(`/events/${event.id}/submit`)
+          .set("Cookie", clubAdminCookie)
+          .expect(409);
+      }
+    });
+  });
+
+  async function createDraftEventInDb(clubIdParam: string, statusParam: any = "DRAFT") {
+    return prisma.event.create({
+      data: {
+        clubId: clubIdParam,
+        createdById: clubAdminId,
+        title: `Test Event ${Date.now()}`,
+        slug: `test-event-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        description: "Test event description",
+        startsAt: new Date("2026-08-10T14:00:00.000Z"),
+        endsAt: new Date("2026-08-10T16:00:00.000Z"),
+        location: "AGU Buyuk Amfi",
+        status: statusParam
+      }
+    });
+  }
 });
 
 function validBody(clubId: string) {

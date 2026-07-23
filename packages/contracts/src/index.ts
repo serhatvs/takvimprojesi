@@ -299,5 +299,42 @@ export interface PressEventsQueryParams {
   q?: string;
 }
 
+// Event Revision Contracts
+export interface EventRevisionDetail {
+  id: string;
+  title: string;
+  description: string;
+  status: "CHANGES_REQUESTED";
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+  createdAt: string;
+  updatedAt: string;
+  club: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface LatestChangeRequestReview {
+  comment: string;
+  createdAt: string;
+}
+
+export interface EventRevisionResponse {
+  event: EventRevisionDetail;
+  latestChangeRequest: LatestChangeRequestReview | null;
+}
+
+export interface UpdateEventRevisionRequest {
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity?: number | null;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";
