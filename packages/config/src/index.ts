@@ -1,5 +1,8 @@
 export const DEFAULT_TIME_ZONE = "Europe/Istanbul" as const;
 export const DEFAULT_API_PORT = 3001;
+export const ATTENDANCE_TOKEN_TTL_MINUTES = 15;
+export const ATTENDANCE_CHECK_IN_OPENS_MINUTES_BEFORE_START = 30;
+export const ATTENDANCE_CHECK_IN_CLOSES_MINUTES_AFTER_END = 60;
 
 export function getApiBaseUrl(): string {
   const runtime = globalThis as {

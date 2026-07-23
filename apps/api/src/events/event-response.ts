@@ -1,5 +1,7 @@
-import type { Event, EventRegistration } from "@prisma/client";
+import type { Attendance, Event, EventRegistration } from "@prisma/client";
 import type {
+  AttendanceResponse,
+  AttendanceTokenResponse,
   DraftEventResponse,
   EventRegistrationResponse,
   EventResponse,
@@ -76,5 +78,26 @@ export function toEventRegistrationResponse(
     eventId: registration.eventId,
     userId: registration.userId,
     registeredAt: registration.registeredAt.toISOString()
+  };
+}
+
+export function toAttendanceTokenResponse(input: {
+  eventId: string;
+  token: string;
+  expiresAt: Date;
+}): AttendanceTokenResponse {
+  return {
+    eventId: input.eventId,
+    token: input.token,
+    expiresAt: input.expiresAt.toISOString()
+  };
+}
+
+export function toAttendanceResponse(attendance: Attendance): AttendanceResponse {
+  return {
+    id: attendance.id,
+    eventId: attendance.eventId,
+    userId: attendance.userId,
+    checkedInAt: attendance.checkedInAt.toISOString()
   };
 }

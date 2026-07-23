@@ -1240,6 +1240,237 @@ describe("POST /events", () => {
       .expect(404);
   });
 
+  it("returns 401 when issuing attendance token without authentication", async () => {
+    const event = await createPublicEvent("integration-registration-event-token-unauth", {
+      title: "Attendance Token Unauth Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer()).post(`/events/${event.id}/attendance-token`).expect(401);
+  });
+
+  it("issues an attendance token for an authorized club admin", async () => {
+    const event = await createPublicEvent("integration-registration-event-token-success", {
+      title: "Attendance Token Success Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/events/${event.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      eventId: event.id,
+      token: expect.any(String),
+      expiresAt: expect.any(String)
+    });
+
+    const storedEvent = await prisma.event.findUniqueOrThrow({ where: { id: event.id } });
+    expect(storedEvent.qrTokenHash).toEqual(expect.any(String));
+    expect(storedEvent.qrTokenHash).not.toBe(response.body.token);
+    expect(storedEvent.qrTokenExpiresAt).toBeInstanceOf(Date);
+
+    const audits = await prisma.auditLog.findMany({
+      where: {
+        entityType: "Event",
+        entityId: event.id,
+        action: "EVENT_ATTENDANCE_TOKEN_ISSUED"
+      }
+    });
+    expect(audits).toHaveLength(1);
+    expect(JSON.stringify(audits[0])).not.toContain(response.body.token);
+    expect(JSON.stringify(audits[0])).not.toContain(storedEvent.qrTokenHash ?? "");
+  });
+
+  it("returns 403 when an unauthorized user issues attendance token", async () => {
+    const event = await createPublicEvent("integration-registration-event-token-forbidden", {
+      title: "Attendance Token Forbidden Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/attendance-token`)
+      .set("Cookie", pressCookie)
+      .expect(403);
+  });
+
+  it("checks in a registered student with a valid token", async () => {
+    const event = await createPublicEvent("integration-registration-event-checkin-success", {
+      title: "Attendance Check In Success Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+    await prisma.eventRegistration.create({ data: { eventId: event.id, userId: studentId } });
+    const tokenResponse = await request(app.getHttpServer())
+      .post(`/events/${event.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .post(`/events/${event.id}/check-in`)
+      .set("Cookie", studentCookie)
+      .send({ token: tokenResponse.body.token })
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      eventId: event.id,
+      userId: studentId,
+      checkedInAt: expect.any(String)
+    });
+
+    const attendance = await prisma.attendance.findUniqueOrThrow({
+      where: {
+        eventId_userId: {
+          eventId: event.id,
+          userId: studentId
+        }
+      }
+    });
+    expect(attendance.eventId).toBe(event.id);
+    expect(attendance.userId).toBe(studentId);
+  });
+
+  it("returns 409 for duplicate check-in", async () => {
+    const event = await createPublicEvent("integration-registration-event-checkin-duplicate", {
+      title: "Attendance Check In Duplicate Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+    await prisma.eventRegistration.create({ data: { eventId: event.id, userId: studentId } });
+    const tokenResponse = await request(app.getHttpServer())
+      .post(`/events/${event.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/check-in`)
+      .set("Cookie", studentCookie)
+      .send({ token: tokenResponse.body.token })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/check-in`)
+      .set("Cookie", studentCookie)
+      .send({ token: tokenResponse.body.token })
+      .expect(409);
+  });
+
+  it("returns 403 when an unregistered student checks in", async () => {
+    const event = await createPublicEvent("integration-registration-event-checkin-unregistered", {
+      title: "Attendance Check In Unregistered Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+    const tokenResponse = await request(app.getHttpServer())
+      .post(`/events/${event.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/check-in`)
+      .set("Cookie", studentCookie)
+      .send({ token: tokenResponse.body.token })
+      .expect(403);
+  });
+
+  it("returns 400 for wrong and expired tokens", async () => {
+    const wrongEvent = await createPublicEvent("integration-registration-event-checkin-wrong", {
+      title: "Attendance Check In Wrong Token Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+    await prisma.eventRegistration.create({ data: { eventId: wrongEvent.id, userId: studentId } });
+    await request(app.getHttpServer())
+      .post(`/events/${wrongEvent.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/events/${wrongEvent.id}/check-in`)
+      .set("Cookie", studentCookie)
+      .send({ token: "wrong-token" })
+      .expect(400);
+
+    const expiredEvent = await createPublicEvent("integration-registration-event-checkin-expired", {
+      title: "Attendance Check In Expired Token Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+    await prisma.eventRegistration.create({ data: { eventId: expiredEvent.id, userId: studentId } });
+    const expiredToken = await request(app.getHttpServer())
+      .post(`/events/${expiredEvent.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+    await prisma.event.update({
+      where: { id: expiredEvent.id },
+      data: { qrTokenExpiresAt: new Date(Date.now() - 60 * 1000) }
+    });
+
+    await request(app.getHttpServer())
+      .post(`/events/${expiredEvent.id}/check-in`)
+      .set("Cookie", studentCookie)
+      .send({ token: expiredToken.body.token })
+      .expect(400);
+  });
+
+  it("rejects old tokens after rotation", async () => {
+    const event = await createPublicEvent("integration-registration-event-checkin-rotated", {
+      title: "Attendance Check In Rotated Token Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+    await prisma.eventRegistration.create({ data: { eventId: event.id, userId: studentId } });
+    const firstToken = await request(app.getHttpServer())
+      .post(`/events/${event.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+    const secondToken = await request(app.getHttpServer())
+      .post(`/events/${event.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/check-in`)
+      .set("Cookie", studentCookie)
+      .send({ token: firstToken.body.token })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/check-in`)
+      .set("Cookie", studentCookie)
+      .send({ token: secondToken.body.token })
+      .expect(201);
+  });
+
+  it("allows only one concurrent check-in", async () => {
+    const event = await createPublicEvent("integration-registration-event-checkin-concurrent", {
+      title: "Attendance Check In Concurrent Event",
+      startsAt: new Date(Date.now() + 10 * 60 * 1000),
+      status: "PUBLISHED"
+    });
+    await prisma.eventRegistration.create({ data: { eventId: event.id, userId: studentId } });
+    const tokenResponse = await request(app.getHttpServer())
+      .post(`/events/${event.id}/attendance-token`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    const responses = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/events/${event.id}/check-in`)
+        .set("Cookie", studentCookie)
+        .send({ token: tokenResponse.body.token }),
+      request(app.getHttpServer())
+        .post(`/events/${event.id}/check-in`)
+        .set("Cookie", studentCookie)
+        .send({ token: tokenResponse.body.token })
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    expect(await prisma.attendance.count({ where: { eventId: event.id, userId: studentId } })).toBe(1);
+  });
+
   it("keeps existing submit, review, and publish routes working alongside public detail", async () => {
     const draft = await createDraftEvent("integration-public-event-route-submit");
     await request(app.getHttpServer())

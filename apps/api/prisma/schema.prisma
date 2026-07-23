@@ -122,6 +122,7 @@ model Event {
   cancelledAt         DateTime?
   completedAt         DateTime?
   qrTokenHash         String?             @unique
+  qrTokenExpiresAt    DateTime?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   club                Club                @relation(fields: [clubId], references: [id], onDelete: Restrict)

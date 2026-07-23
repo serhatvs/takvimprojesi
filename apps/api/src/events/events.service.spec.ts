@@ -61,11 +61,16 @@ const validRequest = {
   createdById: "forged-user-id"
 };
 
+const validAttendanceToken = "valid-attendance-token";
+const validAttendanceTokenHash =
+  "5d5e105d5625c05a91e16c416144c92624ec58e3add956ab59aff93fb5842814";
+
 type CreateServiceOptions = {
   canCreate?: boolean;
   canSubmit?: boolean;
   canReview?: boolean;
   canPublish?: boolean;
+  canIssueAttendanceToken?: boolean;
   clubExists?: boolean;
   existingStatus?: string;
   updateCount?: number;
@@ -85,6 +90,14 @@ type CreateServiceOptions = {
   registrationCreateFailsUnique?: boolean;
   registrationStatusEvent?: boolean;
   registrationStatusRegistration?: boolean;
+  attendanceEvent?: {
+    startsAt?: Date;
+    endsAt?: Date;
+    qrTokenHash?: string | null;
+    qrTokenExpiresAt?: Date | null;
+  } | null;
+  attendanceRegistered?: boolean;
+  attendanceCreateFailsUnique?: boolean;
 };
 
 function createService({
@@ -92,6 +105,7 @@ function createService({
   canSubmit = true,
   canReview = true,
   canPublish = true,
+  canIssueAttendanceToken = true,
   clubExists = true,
   existingStatus = "DRAFT",
   updateCount = 1,
@@ -110,7 +124,15 @@ function createService({
   registrationCounts,
   registrationCreateFailsUnique = false,
   registrationStatusEvent = true,
-  registrationStatusRegistration = false
+  registrationStatusRegistration = false,
+  attendanceEvent = {
+    startsAt: new Date(Date.now() - 10 * 60 * 1000),
+    endsAt: new Date(Date.now() + 50 * 60 * 1000),
+    qrTokenHash: validAttendanceTokenHash,
+    qrTokenExpiresAt: new Date(Date.now() + 10 * 60 * 1000)
+  },
+  attendanceRegistered = true,
+  attendanceCreateFailsUnique = false
 }: CreateServiceOptions = {}) {
   const createdEvent = {
     id: "event-id",
@@ -182,25 +204,50 @@ function createService({
         $queryRaw: vi.fn().mockResolvedValue([{ id: "event-id" }]),
         event: {
           updateMany: vi.fn().mockResolvedValue({ count: updateCount }),
-          findFirst: vi.fn().mockResolvedValue(
-            registrationEvent
-              ? {
-                  id: "event-id",
-                  startsAt: registrationEvent.startsAt ?? new Date("2026-08-10T11:00:00.000Z"),
-                  capacity:
-                    registrationEvent.capacity === undefined ? 100 : registrationEvent.capacity
-                }
-              : null
-          ),
+          update: vi.fn().mockResolvedValue({ id: "event-id" }),
+          findFirst: vi.fn().mockImplementation((args) => {
+            if (args?.select?.qrTokenHash) {
+              return Promise.resolve(
+                attendanceEvent
+                  ? {
+                      id: "event-id",
+                      startsAt: attendanceEvent.startsAt ?? new Date(Date.now() - 10 * 60 * 1000),
+                      endsAt: attendanceEvent.endsAt ?? new Date(Date.now() + 50 * 60 * 1000),
+                      qrTokenHash: attendanceEvent.qrTokenHash ?? validAttendanceTokenHash,
+                      qrTokenExpiresAt:
+                        attendanceEvent.qrTokenExpiresAt ?? new Date(Date.now() + 10 * 60 * 1000)
+                    }
+                  : null
+              );
+            }
+
+            return Promise.resolve(
+              registrationEvent
+                ? {
+                    id: "event-id",
+                    startsAt:
+                      registrationEvent.startsAt ?? new Date("2026-08-10T11:00:00.000Z"),
+                    capacity:
+                      registrationEvent.capacity === undefined ? 100 : registrationEvent.capacity
+                  }
+                : null
+            );
+          }),
           findUniqueOrThrow: vi.fn().mockResolvedValue({
             ...createdEvent,
             status: updatedStatus
           })
         },
         eventRegistration: {
-          findUnique: vi.fn().mockResolvedValue(
-            existingRegistration ? { id: "registration-id" } : null
-          ),
+          findUnique: vi.fn().mockImplementation((args) => {
+            if (args?.select?.cancelledAt) {
+              return Promise.resolve(
+                attendanceRegistered ? { id: "registration-id", cancelledAt: null } : null
+              );
+            }
+
+            return Promise.resolve(existingRegistration ? { id: "registration-id" } : null);
+          }),
           count: registrationCountMock,
           create: registrationCreateFailsUnique
             ? vi.fn().mockRejectedValue({ code: "P2002" })
@@ -209,6 +256,17 @@ function createService({
                 eventId: data.eventId,
                 userId: data.userId,
                 registeredAt: new Date("2026-07-23T12:00:00.000Z")
+              }))
+        },
+        attendance: {
+          create: attendanceCreateFailsUnique
+            ? vi.fn().mockRejectedValue({ code: "P2002" })
+            : vi.fn().mockImplementation(({ data }) => ({
+                id: "attendance-id",
+                eventId: data.eventId,
+                userId: data.userId,
+                checkedInAt: new Date("2026-07-23T12:00:00.000Z"),
+                source: data.source
               }))
         },
         eventReview: {
@@ -230,7 +288,8 @@ function createService({
     canCreateEventForClub: vi.fn().mockResolvedValue(canCreate),
     canSubmitEventForClub: vi.fn().mockResolvedValue(canSubmit),
     canReviewEvents: vi.fn().mockReturnValue(canReview),
-    canPublishEvents: vi.fn().mockReturnValue(canPublish)
+    canPublishEvents: vi.fn().mockReturnValue(canPublish),
+    canIssueAttendanceTokenForClub: vi.fn().mockResolvedValue(canIssueAttendanceToken)
   };
   const lifecycle = {
     assertTransitionAllowed: vi.fn((from: string, to: string) => {
@@ -602,6 +661,168 @@ describe("EventsService", () => {
     await expect(
       service.getEventRegistrationStatus(student, "11111111-1111-4111-8111-111111111111")
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("allows a club admin to issue an attendance token for a published event", async () => {
+    const { service, prisma, authorization } = createService({ existingStatus: "PUBLISHED" });
+
+    const result = await service.issueAttendanceToken(
+      clubAdmin,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(result.eventId).toBe("11111111-1111-4111-8111-111111111111");
+    expect(result.token).toEqual(expect.any(String));
+    expect(result.expiresAt).toBeInstanceOf(Date);
+    expect(authorization.canIssueAttendanceTokenForClub).toHaveBeenCalledWith(clubAdmin, "club-id");
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+  });
+
+  it("does not allow another club admin to issue an attendance token", async () => {
+    const { service } = createService({
+      existingStatus: "PUBLISHED",
+      canIssueAttendanceToken: false
+    });
+
+    await expect(
+      service.issueAttendanceToken(clubAdmin, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("does not allow a press editor to issue an attendance token", async () => {
+    const { service } = createService({
+      existingStatus: "PUBLISHED",
+      canIssueAttendanceToken: false
+    });
+
+    await expect(
+      service.issueAttendanceToken(pressEditor, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("stores only token hash and replaces the old token", async () => {
+    let storedHash = "";
+    let auditPayload = "";
+    const transactionClient = {
+      event: {
+        update: vi.fn(async ({ data }) => {
+          storedHash = data.qrTokenHash;
+          expect(data.qrTokenHash).toEqual(expect.any(String));
+          expect(data.qrTokenExpiresAt).toBeInstanceOf(Date);
+          return { id: "event-id" };
+        })
+      },
+      auditLog: {
+        create: vi.fn(async ({ data }) => {
+          auditPayload = JSON.stringify(data);
+          return { id: "audit-id" };
+        })
+      }
+    };
+    const { service, prisma } = createService({ existingStatus: "PUBLISHED" });
+    prisma.$transaction.mockImplementationOnce(async (callback) => callback(transactionClient));
+
+    const tokenResponse = await service.issueAttendanceToken(
+      clubAdmin,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(storedHash).not.toBe(tokenResponse.token);
+    expect(auditPayload).not.toContain(tokenResponse.token);
+    expect(auditPayload).not.toContain(storedHash);
+    expect(transactionClient.event.update).toHaveBeenCalledWith({
+      where: { id: "11111111-1111-4111-8111-111111111111" },
+      data: expect.objectContaining({
+        qrTokenHash: expect.any(String),
+        qrTokenExpiresAt: expect.any(Date)
+      }),
+      select: { id: true }
+    });
+  });
+
+  it("allows a registered student to check in with a valid token", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.checkInWithAttendanceToken(
+        student,
+        "11111111-1111-4111-8111-111111111111",
+        validAttendanceToken
+      )
+    ).resolves.toMatchObject({
+      eventId: "11111111-1111-4111-8111-111111111111",
+      userId: student.userId
+    });
+  });
+
+  it("does not allow an unregistered student to check in", async () => {
+    const { service } = createService({ attendanceRegistered: false });
+
+    await expect(
+      service.checkInWithAttendanceToken(
+        student,
+        "11111111-1111-4111-8111-111111111111",
+        validAttendanceToken
+      )
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("rejects expired or wrong attendance tokens", async () => {
+    const expired = createService({
+      attendanceEvent: {
+        startsAt: new Date(Date.now() - 10 * 60 * 1000),
+        endsAt: new Date(Date.now() + 50 * 60 * 1000),
+        qrTokenHash: validAttendanceTokenHash,
+        qrTokenExpiresAt: new Date(Date.now() - 60 * 1000)
+      }
+    });
+    await expect(
+      expired.service.checkInWithAttendanceToken(
+        student,
+        "11111111-1111-4111-8111-111111111111",
+        validAttendanceToken
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const wrong = createService();
+    await expect(
+      wrong.service.checkInWithAttendanceToken(
+        student,
+        "11111111-1111-4111-8111-111111111111",
+        "wrong-token"
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("rejects check-in outside the attendance window", async () => {
+    const { service } = createService({
+      attendanceEvent: {
+        startsAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        endsAt: new Date(Date.now() + 3 * 60 * 60 * 1000),
+        qrTokenHash: validAttendanceTokenHash,
+        qrTokenExpiresAt: new Date(Date.now() + 10 * 60 * 1000)
+      }
+    });
+
+    await expect(
+      service.checkInWithAttendanceToken(
+        student,
+        "11111111-1111-4111-8111-111111111111",
+        validAttendanceToken
+      )
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("maps duplicate or concurrent check-in to conflict", async () => {
+    const { service } = createService({ attendanceCreateFailsUnique: true });
+
+    await expect(
+      service.checkInWithAttendanceToken(
+        student,
+        "11111111-1111-4111-8111-111111111111",
+        validAttendanceToken
+      )
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it("creates a draft event for an authorized club admin", async () => {

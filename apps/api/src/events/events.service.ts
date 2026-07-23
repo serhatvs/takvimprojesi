@@ -1,4 +1,9 @@
 import {
+  ATTENDANCE_CHECK_IN_CLOSES_MINUTES_AFTER_END,
+  ATTENDANCE_CHECK_IN_OPENS_MINUTES_BEFORE_START,
+  ATTENDANCE_TOKEN_TTL_MINUTES
+} from "@agu/config";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -6,7 +11,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import type { EventReviewDecision, EventStatus, Prisma } from "@prisma/client";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { AuthorizationService } from "../auth/authorization.service";
 import type { Principal } from "../auth/principal";
 import { PrismaService } from "../prisma/prisma.service";
@@ -32,6 +37,8 @@ const PUBLIC_EVENT_SELECT = {
     }
   }
 } satisfies Prisma.EventSelect;
+
+const MILLISECONDS_PER_MINUTE = 60 * 1000;
 
 @Injectable()
 export class EventsService {
@@ -440,6 +447,145 @@ export class EventsService {
     });
   }
 
+  async issueAttendanceToken(principal: Principal, eventId: string) {
+    this.assertValidEventId(eventId);
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        status: true
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    const canIssue = await this.authorizationService.canIssueAttendanceTokenForClub(
+      principal,
+      event.clubId
+    );
+    if (!canIssue) {
+      throw new ForbiddenException("You are not allowed to issue attendance tokens.");
+    }
+
+    if (event.status !== "PUBLISHED") {
+      throw new ConflictException("Only published events can receive attendance tokens.");
+    }
+
+    const token = this.createAttendanceToken();
+    const expiresAt = new Date(Date.now() + ATTENDANCE_TOKEN_TTL_MINUTES * MILLISECONDS_PER_MINUTE);
+    const tokenHash = this.hashAttendanceToken(token);
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.event.update({
+        where: { id: eventId },
+        data: {
+          qrTokenHash: tokenHash,
+          qrTokenExpiresAt: expiresAt
+        },
+        select: { id: true }
+      });
+
+      await transaction.auditLog.create({
+        data: {
+          actorId: principal.userId,
+          entityType: "Event",
+          entityId: eventId,
+          action: "EVENT_ATTENDANCE_TOKEN_ISSUED",
+          metadata: {
+            expiresAt: expiresAt.toISOString(),
+            ttlMinutes: ATTENDANCE_TOKEN_TTL_MINUTES
+          }
+        }
+      });
+    });
+
+    return {
+      eventId,
+      token,
+      expiresAt
+    };
+  }
+
+  async checkInWithAttendanceToken(principal: Principal, eventId: string, token: unknown) {
+    this.assertValidEventId(eventId);
+    const inputToken = this.requiredString(token, "token");
+
+    if (!principal.globalRoles.includes("STUDENT")) {
+      throw new ForbiddenException("Only students can check in to events.");
+    }
+
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        const event = await transaction.event.findFirst({
+          where: {
+            id: eventId,
+            status: "PUBLISHED"
+          },
+          select: {
+            id: true,
+            startsAt: true,
+            endsAt: true,
+            qrTokenHash: true,
+            qrTokenExpiresAt: true
+          }
+        });
+
+        if (!event) {
+          throw new NotFoundException("Event was not found.");
+        }
+
+        const registration = await transaction.eventRegistration.findUnique({
+          where: {
+            eventId_userId: {
+              eventId,
+              userId: principal.userId
+            }
+          },
+          select: {
+            id: true,
+            cancelledAt: true
+          }
+        });
+
+        if (!registration || registration.cancelledAt) {
+          throw new ForbiddenException("You must be registered for this event to check in.");
+        }
+
+        const now = new Date();
+        if (!this.isWithinAttendanceWindow(event.startsAt, event.endsAt, now)) {
+          throw new ConflictException("Check-in is not open for this event.");
+        }
+
+        if (
+          !event.qrTokenHash ||
+          !event.qrTokenExpiresAt ||
+          event.qrTokenExpiresAt <= now ||
+          !this.isAttendanceTokenValid(inputToken, event.qrTokenHash)
+        ) {
+          throw new BadRequestException("Attendance token is invalid or expired.");
+        }
+
+        return transaction.attendance.create({
+          data: {
+            eventId,
+            userId: principal.userId,
+            source: "QR"
+          }
+        });
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw new ConflictException("User has already checked in for this event.");
+      }
+
+      throw error;
+    }
+  }
+
   private validateCreateDraftEvent(dto: CreateDraftEventDto): ValidCreateDraftEventInput {
     const clubId = this.requiredString(dto.clubId, "clubId");
     const title = this.requiredString(dto.title, "title");
@@ -575,6 +721,34 @@ export class EventsService {
     }
 
     return value;
+  }
+
+  private createAttendanceToken(): string {
+    return randomBytes(32).toString("base64url");
+  }
+
+  private hashAttendanceToken(token: string): string {
+    return createHash("sha256").update(token, "utf8").digest("hex");
+  }
+
+  private isAttendanceTokenValid(token: string, expectedHash: string): boolean {
+    const actualHash = this.hashAttendanceToken(token);
+    const actual = Buffer.from(actualHash, "hex");
+    const expected = Buffer.from(expectedHash, "hex");
+
+    return actual.length === expected.length && timingSafeEqual(actual, expected);
+  }
+
+  private isWithinAttendanceWindow(startsAt: Date, endsAt: Date, now: Date): boolean {
+    const opensAt = new Date(
+      startsAt.getTime() -
+        ATTENDANCE_CHECK_IN_OPENS_MINUTES_BEFORE_START * MILLISECONDS_PER_MINUTE
+    );
+    const closesAt = new Date(
+      endsAt.getTime() + ATTENDANCE_CHECK_IN_CLOSES_MINUTES_AFTER_END * MILLISECONDS_PER_MINUTE
+    );
+
+    return now >= opensAt && now <= closesAt;
   }
 
   private looksLikeIsoDate(value: string): boolean {

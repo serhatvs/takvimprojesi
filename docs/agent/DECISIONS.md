@@ -58,3 +58,9 @@
   - Gerekce: Detay sayfasi yayin durumu ve 404 gorunurluk kurallarini geciktirmeden yansitmalidir; metadata uretimi ayni public veri kaynagini kullanirken gereksiz tekrar cagrilari azaltir.
 - Event registration kapasite kontrolu PostgreSQL row lock ile ayni Prisma transaction icinde yapilir.
   - Gerekce: Son kontenjan icin eszamanli isteklerde once kayit sayip sonra bagimsiz create yapmak kapasite asimina yol acabilir; event satirini `FOR UPDATE` kilitlemek kapasite sayimi ve `EventRegistration` create adimini siralarken mevcut unique constraint duplicate kayit icin son savunma olarak kalir.
+- Attendance token MVP gecerlilik suresi 15 dakika olarak belirlendi ve `Event.qrTokenExpiresAt` alani eklendi.
+  - Gerekce: Ham QR token veritabaninda saklanmadan expiry dogrulamasi yapilmalidir. 15 dakika, etkinlik alaninda tokeni yenilemeyi zorlastirmadan token sizintisi riskini sinirlayan basit MVP suresidir.
+- QR check-in penceresi baslangictan 30 dakika once acilir ve bitisten 60 dakika sonra kapanir.
+  - Gerekce: Ogrencilerin etkinlik alanina erken gelmesi ve cikista yogunluk olmasi beklenir; pencere controller icinde sayi gommeden `packages/config` sabitleriyle uygulanir.
+- Attendance token karsilastirmasi SHA-256 hash ve `timingSafeEqual` ile yapilir.
+  - Gerekce: Ham token saklanmaz, basit string karsilastirmasi kullanilmaz ve token rotation `qrTokenHash`/`qrTokenExpiresAt` alanlarini degistirerek eski tokeni gecersiz kilar.

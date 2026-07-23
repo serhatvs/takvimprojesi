@@ -54,6 +54,12 @@ Kullanicinin kendi kayit durumu `GET /events/:eventId/registration` ile okunur. 
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.
 
+`POST /events/:eventId/attendance-token` endpointi yalniz etkinligin kulubundeki aktif `ADMIN` uyeligine sahip kullanici veya `SYSTEM_ADMIN` tarafindan kullanilir. Etkinlik `PUBLISHED` degilse token uretilemez. API kriptografik olarak guvenli rastgele ham token uretir, ham tokeni sadece basarili response icinde bir kez dondurur ve veritabaninda yalniz SHA-256 hash ile `qrTokenExpiresAt` degerini saklar. Yeni token uretimi `Event.qrTokenHash` ve `Event.qrTokenExpiresAt` alanlarini degistirdigi icin eski tokeni gecersiz kilar. MVP token gecerliligi 15 dakikadir.
+
+Token uretimi `EVENT_ATTENDANCE_TOKEN_ISSUED` audit action'i ile kaydedilir. Audit metadata token suresini ve expiry bilgisini tasir; ham token veya token hash audit, log veya hata mesajlarina yazilmaz.
+
+`POST /events/:eventId/check-in` endpointi authentication ve `STUDENT` rolu gerektirir. Ogrencinin etkinlige kayitli olmasi, event status'unun `PUBLISHED` olmasi, token hash'inin guvenli karsilastirmayla dogrulanmasi ve tokenin suresinin dolmamis olmasi gerekir. MVP check-in penceresi etkinlik baslangicindan 30 dakika once acilir ve bitisten 60 dakika sonra kapanir; bu degerler `packages/config` sabitlerinde tutulur. Attendance create islemi transaction icinde calisir ve `@@unique([eventId, userId])` duplicate/eszamanli ikinci check-in'i `409 Conflict` sonucuna cevirir.
+
 ## Bildirim Adaptoru Yaklasimi
 
 `Notification` modeli uygulama ici bildirimleri ve gelecekteki kanal metadata'sini tutar. E-posta, SMS veya push gibi saglayicilar adapter arkasina alinmali; domain servisi saglayici detaylarini bilmemelidir.
@@ -67,6 +73,8 @@ Durum degisiklikleri ve kritik operasyonlar `AuditLog` ile izlenir. Log kaydi ac
 Basin Yayin kararlari icin audit action degerleri `EVENT_CHANGES_REQUESTED`, `EVENT_REJECTED` ve `EVENT_APPROVED` olarak tutulur. Audit metadata karar bilgisini tasir; yorum `EventReview` icinde saklanir ve token, cookie veya secret audit/review kayitlarina yazilmaz.
 
 Publish islemi icin audit action `EVENT_PUBLISHED` olarak tutulur. Audit kaydi onceki status `APPROVED`, yeni status `PUBLISHED`, actor ve publish zamanini metadata icinde tasir; cookie, token veya secret saklanmaz.
+
+Attendance token uretimi icin audit action `EVENT_ATTENDANCE_TOKEN_ISSUED` olarak tutulur. Audit kaydi actor, Event entity, event ID, expiry ve TTL bilgisini tasir; ham token veya token hash saklanmaz.
 
 ## Guvenlik ve Kisisel Veri Minimizasyonu
 

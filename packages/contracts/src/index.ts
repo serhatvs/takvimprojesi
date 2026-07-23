@@ -165,5 +165,18 @@ export interface EventRegistrationStatusResponse {
   registration: EventRegistrationResponse | null;
 }
 
+export interface AttendanceTokenResponse {
+  eventId: string;
+  token: string;
+  expiresAt: string;
+}
+
+export interface AttendanceResponse {
+  id: string;
+  eventId: string;
+  userId: string;
+  checkedInAt: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";
