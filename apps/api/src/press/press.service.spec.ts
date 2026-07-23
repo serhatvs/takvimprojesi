@@ -149,4 +149,60 @@ describe("PressService", () => {
       expect(result.items[0]?.club.name).toBe("Music Club");
     });
   });
+
+  describe("listApprovedEvents", () => {
+    it("allows PRESS_EDITOR and SYSTEM_ADMIN", async () => {
+      prismaMock.event.count.mockResolvedValue(0);
+      prismaMock.event.findMany.mockResolvedValue([]);
+
+      const res = await service.listApprovedEvents(pressPrincipal, {});
+      expect(res.items).toEqual([]);
+
+      const resAdmin = await service.listApprovedEvents(adminPrincipal, {});
+      expect(resAdmin.items).toEqual([]);
+    });
+
+    it("throws 403 for STUDENT and CLUB_ADMIN-only users", async () => {
+      await expect(service.listApprovedEvents(studentPrincipal, {})).rejects.toThrow(ForbiddenException);
+      await expect(service.listApprovedEvents(clubAdminPrincipal, {})).rejects.toThrow(ForbiddenException);
+    });
+
+    it("queries status=APPROVED and returns mapped items with publishedAt", async () => {
+      prismaMock.event.count.mockResolvedValue(1);
+      const mockDate = new Date("2026-08-10T12:00:00.000Z");
+      prismaMock.event.findMany.mockResolvedValue([
+        {
+          id: "evt-approved-1",
+          title: "Approved Concert",
+          description: "Approved Desc",
+          status: "APPROVED",
+          startsAt: mockDate,
+          endsAt: mockDate,
+          location: "Hall B",
+          capacity: 200,
+          createdAt: mockDate,
+          updatedAt: mockDate,
+          publishedAt: null,
+          club: { id: "club-1", name: "Music Club" }
+        }
+      ]);
+
+      const result = await service.listApprovedEvents(pressPrincipal, { page: "1", pageSize: "10" });
+
+      expect(prismaMock.event.findMany).toHaveBeenCalledWith({
+        where: {
+          status: "APPROVED"
+        },
+        select: expect.objectContaining({
+          publishedAt: true
+        }),
+        orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+        skip: 0,
+        take: 10
+      });
+
+      expect(result.items[0]?.status).toBe("APPROVED");
+      expect(result.items[0]?.publishedAt).toBeNull();
+    });
+  });
 });

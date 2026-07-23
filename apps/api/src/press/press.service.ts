@@ -83,6 +83,66 @@ export class PressService {
     };
   }
 
+  async listApprovedEvents(principal: Principal, query: PressEventsQueryDto) {
+    this.assertPressAccess(principal);
+
+    const input = this.validatePressQuery(query);
+
+    const where: Prisma.EventWhereInput = {
+      status: "APPROVED"
+    };
+
+    if (input.q) {
+      where.OR = [
+        { title: { contains: input.q, mode: "insensitive" } },
+        { description: { contains: input.q, mode: "insensitive" } },
+        { club: { name: { contains: input.q, mode: "insensitive" } } }
+      ];
+    }
+
+    const [totalItems, items] = await Promise.all([
+      this.prisma.event.count({ where }),
+      this.prisma.event.findMany({
+        where,
+        select: {
+          ...PRESS_EVENT_SELECT,
+          publishedAt: true
+        },
+        orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+        skip: (input.page - 1) * input.pageSize,
+        take: input.pageSize
+      })
+    ]);
+
+    const mappedItems = items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      status: "APPROVED" as const,
+      startsAt: item.startsAt.toISOString(),
+      endsAt: item.endsAt.toISOString(),
+      location: item.location,
+      capacity: item.capacity,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+      publishedAt: item.publishedAt ? item.publishedAt.toISOString() : null,
+      club: {
+        id: item.club.id,
+        name: item.club.name
+      }
+    }));
+
+    return {
+      items: mappedItems,
+      pagination: {
+        page: input.page,
+        pageSize: input.pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / input.pageSize) || 0
+      }
+    };
+  }
+
   private assertPressAccess(principal: Principal): void {
     const isPress =
       principal.globalRoles.includes("PRESS_EDITOR") ||

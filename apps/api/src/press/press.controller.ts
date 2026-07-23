@@ -17,4 +17,13 @@ export class PressController {
   ) {
     return this.pressService.listSubmittedEvents(principal, query);
   }
+
+  @Get("events/approved")
+  @UseGuards(AuthenticationGuard)
+  async listApprovedEvents(
+    @CurrentUser() principal: Principal,
+    @Query() query: PressEventsQueryDto
+  ) {
+    return this.pressService.listApprovedEvents(principal, query);
+  }
 }

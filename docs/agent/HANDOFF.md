@@ -330,6 +330,15 @@ Toplam uygulanmis endpoint sayisi: 19.
   - Basari: `200`, `items` ve `pagination` doner. Internal veriler sızdırılmaz.
   - `401`: auth yok; `403`: yetki yok; `400`: gecersiz query.
 
+- `GET /press/events/approved`
+  - Auth gerekir.
+  - Yetki: `PRESS_EDITOR` veya `SYSTEM_ADMIN`.
+  - Yayınlanmayı bekleyen `APPROVED` etkinliklerin listesini doner.
+  - Query: `q`, `page`, `pageSize`.
+  - Siralama: `updatedAt ASC`, `id ASC`.
+  - Basari: `200`, `items` ve `pagination` doner. Internal veriler sızdırılmaz.
+  - `401`: auth yok; `403`: yetki yok; `400`: gecersiz query.
+
 ## 8. Transaction ve Eszamanlilik Kararlari
 
 - Lifecycle gecisleri kosullu update kullanir: update sadece beklenen mevcut status ile eslesirse basarili olur.
@@ -400,9 +409,9 @@ Panel gorunurlukleri:
 
 Son dogrulanmis test sayilari:
 
-- API unit: 119
-- API integration: 125
-- Web unit: 120
+- API unit: 122
+- API integration: 130
+- Web unit: 125
 - Contracts unit: 2
 
 `packages/config` ve `packages/ui` icinde test dosyasi yoktur; mevcut scriptler `--passWithNoTests` ile acik sekilde bos gecer.
@@ -461,9 +470,7 @@ Test stratejisi:
 
 ## 15. Sonraki Onerilen Gorevler
 
-1. APPROVED etkinliği Basın Yayın panelinden yayınlama
-   - Onaylanmış `APPROVED` durumundaki etkinliklerin `/press-dashboard` üzerinden Basın Yayın editörleri veya sistem yöneticisi tarafından yayına alınması (`POST /events/:eventId/publish`) ve `publishedAt` alanının doldurulması.
-2. `CHANGES_REQUESTED` event duzenleme ve yeniden submit
+1. `CHANGES_REQUESTED` etkinlikleri kulüp dashboard’unda düzenleme ve yeniden onaya gönderme
    - Basın Yayın inceleme ekranından sonra degisiklik istenen etkinliklerin kulup tarafindan yeniden duzenlenmesi ele alinmalidir.
 3. Event cancel/complete lifecycle
    - Yayinlanmis etkinliklerin operasyonel kapanis ve iptal senaryolari icin gerekli lifecycle adimlaridir.

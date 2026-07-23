@@ -273,6 +273,26 @@ export interface PressEventsResponse {
   pagination: PaginationResponse;
 }
 
+export interface PressApprovedEventListItem {
+  id: string;
+  title: string;
+  description: string;
+  status: "APPROVED";
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  club: PressEventClub;
+}
+
+export interface PressApprovedEventsResponse {
+  items: PressApprovedEventListItem[];
+  pagination: PaginationResponse;
+}
+
 export interface PressEventsQueryParams {
   page?: string;
   pageSize?: string;

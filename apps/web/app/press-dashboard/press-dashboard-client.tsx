@@ -6,45 +6,67 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   buildPressEventsApiPath,
+  buildPressEventsApprovedApiPath,
   getSafePressEventsErrorMessage,
   isPressUser,
+  parsePressDashboardView,
+  toPressApprovedEventCardViewModel,
   toPressEventCardViewModel,
-  type PressDashboardState
+  type PressDashboardState,
+  type PressDashboardView
 } from "./press-dashboard-helper";
+import { PressEventPublishControls } from "./press-event-publish-controls";
 import { PressEventReviewControls } from "./press-event-review-controls";
 
 type PressDashboardClientProps = {
   initialQ?: string;
   initialPage?: number;
+  initialView?: PressDashboardView;
 };
 
-export function PressDashboardClient({ initialQ = "", initialPage = 1 }: PressDashboardClientProps) {
+export function PressDashboardClient({
+  initialQ = "",
+  initialPage = 1,
+  initialView = "review"
+}: PressDashboardClientProps) {
   const [state, setState] = useState<PressDashboardState>({ kind: "checking-session" });
+  const [view, setView] = useState<PressDashboardView>(parsePressDashboardView(initialView));
   const [q, setQ] = useState(initialQ);
   const [page, setPage] = useState(initialPage);
   const pageSize = 20;
 
-  const loadEvents = useCallback(async (userMe: AuthMeResponse["user"], queryQ: string, queryPage: number) => {
-    setState({ kind: "loading-events" });
+  const loadEvents = useCallback(
+    async (userMe: AuthMeResponse["user"], currentView: PressDashboardView, queryQ: string, queryPage: number) => {
+      setState({ kind: "loading-events" });
 
-    try {
-      const url = buildPressEventsApiPath(queryQ, queryPage, pageSize);
-      const res = await fetch(url, {
-        credentials: "include",
-        cache: "no-store"
-      });
+      try {
+        const url =
+          currentView === "publish"
+            ? buildPressEventsApprovedApiPath(queryQ, queryPage, pageSize)
+            : buildPressEventsApiPath(queryQ, queryPage, pageSize);
 
-      if (!res.ok) {
-        setState({ kind: "error", message: getSafePressEventsErrorMessage(res.status) });
-        return;
+        const res = await fetch(url, {
+          credentials: "include",
+          cache: "no-store"
+        });
+
+        if (!res.ok) {
+          setState({ kind: "error", message: getSafePressEventsErrorMessage(res.status, currentView) });
+          return;
+        }
+
+        const data = await res.json();
+        setState({ kind: "ready", data, user: userMe });
+      } catch {
+        const msg =
+          currentView === "publish"
+            ? "Yayınlanmayı bekleyen etkinlikler alınamadı. Lütfen tekrar deneyin."
+            : "İnceleme bekleyen etkinlikler alınamadı. Lütfen tekrar deneyin.";
+        setState({ kind: "error", message: msg });
       }
-
-      const data = await res.json();
-      setState({ kind: "ready", data, user: userMe });
-    } catch {
-      setState({ kind: "error", message: "İnceleme bekleyen etkinlikler alınamadı. Lütfen tekrar deneyin." });
-    }
-  }, [pageSize]);
+    },
+    [pageSize]
+  );
 
   useEffect(() => {
     let active = true;
@@ -53,8 +75,12 @@ export function PressDashboardClient({ initialQ = "", initialPage = 1 }: PressDa
       setState({ kind: "checking-session" });
 
       try {
-        const meRes = await fetch("/api-proxy/auth/me", { credentials: "include" }).catch(() => null)
-          || await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/auth/me`, { credentials: "include" });
+        const meRes =
+          (await fetch("/api-proxy/auth/me", { credentials: "include" }).catch(() => null)) ||
+          (await fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"}/auth/me`,
+            { credentials: "include" }
+          ));
 
         if (!active) return;
 
@@ -64,7 +90,10 @@ export function PressDashboardClient({ initialQ = "", initialPage = 1 }: PressDa
         }
 
         if (!meRes.ok) {
-          setState({ kind: "error", message: "İnceleme bekleyen etkinlikler alınamadı. Lütfen tekrar deneyin." });
+          setState({
+            kind: "error",
+            message: getSafePressEventsErrorMessage(meRes.status, view)
+          });
           return;
         }
 
@@ -74,10 +103,14 @@ export function PressDashboardClient({ initialQ = "", initialPage = 1 }: PressDa
           return;
         }
 
-        await loadEvents(meData.user, q, page);
+        await loadEvents(meData.user, view, q, page);
       } catch {
         if (active) {
-          setState({ kind: "error", message: "İnceleme bekleyen etkinlikler alınamadı. Lütfen tekrar deneyin." });
+          const msg =
+            view === "publish"
+              ? "Yayınlanmayı bekleyen etkinlikler alınamadı. Lütfen tekrar deneyin."
+              : "İnceleme bekleyen etkinlikler alınamadı. Lütfen tekrar deneyin.";
+          setState({ kind: "error", message: msg });
         }
       }
     }
@@ -87,7 +120,13 @@ export function PressDashboardClient({ initialQ = "", initialPage = 1 }: PressDa
     return () => {
       active = false;
     };
-  }, [q, page, loadEvents]);
+  }, [view, q, page, loadEvents]);
+
+  function handleViewChange(newView: PressDashboardView) {
+    if (newView === view) return;
+    setView(newView);
+    setPage(1);
+  }
 
   function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -191,6 +230,27 @@ export function PressDashboardClient({ initialQ = "", initialPage = 1 }: PressDa
         </div>
       </header>
 
+      <section className="view-toggle-section" style={{ marginBottom: "var(--spacing-3)" }}>
+        <div className="view-toggle-buttons" style={{ display: "flex", gap: "var(--spacing-2)" }}>
+          <button
+            type="button"
+            className={view === "review" ? "primary-action" : "secondary-action"}
+            aria-current={view === "review" ? "page" : undefined}
+            onClick={() => handleViewChange("review")}
+          >
+            İnceleme Bekleyenler
+          </button>
+          <button
+            type="button"
+            className={view === "publish" ? "primary-action" : "secondary-action"}
+            aria-current={view === "publish" ? "page" : undefined}
+            onClick={() => handleViewChange("publish")}
+          >
+            Yayınlanmayı Bekleyenler
+          </button>
+        </div>
+      </section>
+
       <section className="press-filters-section">
         <form className="event-filters" onSubmit={handleSearchSubmit}>
           <div className="filter-group">
@@ -218,18 +278,68 @@ export function PressDashboardClient({ initialQ = "", initialPage = 1 }: PressDa
       <section className="events-panel" style={{ marginTop: "var(--spacing-4)" }}>
         <div className="queue-stats" style={{ marginBottom: "var(--spacing-3)" }}>
           <p>
-            <strong>Bekleyen Toplam Etkinlik Sayısı:</strong> {pagination.totalItems}
+            <strong>
+              {view === "publish" ? "Bekleyen APPROVED Toplam Sayısı:" : "Bekleyen Toplam Etkinlik Sayısı:"}
+            </strong>{" "}
+            {pagination.totalItems}
           </p>
         </div>
 
         {items.length === 0 ? (
           <div className="empty-panel">
-            <p>İnceleme bekleyen etkinlik bulunmuyor.</p>
+            <p>
+              {view === "publish"
+                ? "Yayınlanmayı bekleyen etkinlik bulunmuyor."
+                : "İnceleme bekleyen etkinlik bulunmuyor."}
+            </p>
           </div>
         ) : (
           <div className="event-grid">
             {items.map((item) => {
-              const vm = toPressEventCardViewModel(item);
+              if (view === "publish") {
+                const approvedItem = item as unknown as import("@agu/contracts").PressApprovedEventListItem;
+                const vm = toPressApprovedEventCardViewModel(approvedItem);
+                return (
+                  <div key={vm.id} className="event-card">
+                    <div className="event-card-header">
+                      <h3 className="event-title">{vm.title}</h3>
+                      <StatusBadge tone="neutral">{vm.statusLabel}</StatusBadge>
+                    </div>
+                    <div className="event-meta">
+                      <p>
+                        <strong>Kulüp:</strong> {vm.clubName}
+                      </p>
+                      <p>
+                        <strong>Açıklama:</strong> {vm.description}
+                      </p>
+                      <p>
+                        <strong>Zaman:</strong> {vm.startsAt} - {vm.endsAt}
+                      </p>
+                      <p>
+                        <strong>Konum:</strong> {vm.location}
+                      </p>
+                      {vm.capacityLabel && (
+                        <p>
+                          <strong>Kapasite:</strong> {vm.capacityLabel}
+                        </p>
+                      )}
+                      <p>
+                        <strong>Onay Zamanı:</strong> {vm.submittedAt}
+                      </p>
+                    </div>
+
+                    <PressEventPublishControls
+                      eventId={item.id}
+                      eventTitle={item.title}
+                      clubName={item.club.name}
+                      startsAt={vm.startsAt}
+                      onPublishSuccess={() => void loadEvents(user, view, q, page)}
+                    />
+                  </div>
+                );
+              }
+
+              const vm = toPressEventCardViewModel(item as import("@agu/contracts").PressEventListItem);
               return (
                 <div key={vm.id} className="event-card">
                   <div className="event-card-header">
@@ -263,7 +373,7 @@ export function PressDashboardClient({ initialQ = "", initialPage = 1 }: PressDa
                     eventId={item.id}
                     eventTitle={item.title}
                     clubName={item.club.name}
-                    onReviewSuccess={() => void loadEvents(user, q, page)}
+                    onReviewSuccess={() => void loadEvents(user, view, q, page)}
                   />
                 </div>
               );
