@@ -160,5 +160,10 @@ export interface EventRegistrationResponse {
   registeredAt: string;
 }
 
+export interface EventRegistrationStatusResponse {
+  registered: boolean;
+  registration: EventRegistrationResponse | null;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

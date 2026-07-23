@@ -1,8 +1,10 @@
+import { getApiBaseUrl } from "@agu/config";
 import { StatusBadge } from "@agu/ui";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { EventRegistrationPanel } from "../../event-registration-panel";
 import {
   buildPublicEventsReturnHref,
   createEventMetadataDescription,
@@ -128,6 +130,7 @@ export default async function EventDetailPage({ params, searchParams }: EventDet
               </div>
             ) : null}
           </dl>
+          <EventRegistrationPanel apiBaseUrl={getApiBaseUrl()} eventId={result.event.id} />
         </aside>
       </section>
     </main>

@@ -48,6 +48,8 @@ Ogrenci etkinlik kaydi `POST /events/:eventId/register` ile yapilir ve authentic
 
 Kayit yalnizca `PUBLISHED` ve henuz baslamamis etkinlikler icin aciktir. Public olmayan veya bilinmeyen event ID'leri `404 Not Found` ile gizlenir; baslamis etkinlik, duplicate kayit veya dolu kapasite `409 Conflict` doner. Kapasite kontrolu PostgreSQL transaction icinde event satirina `FOR UPDATE` lock alinarak yapilir; kayit sayisi ve `EventRegistration` create ayni transaction icindedir. `@@unique([eventId, userId])` duplicate kayit icin son savunma katmani olarak kalir ve Prisma unique constraint hatalari kontrollu `409` cevabina cevrilir.
 
+Kullanicinin kendi kayit durumu `GET /events/:eventId/registration` ile okunur. Endpoint authentication ve `STUDENT` rolunu gerektirir; yalniz principal `userId` icin `EventRegistration` kaydini dondurur. Baska ogrencilerin kayit bilgisi, kapasite sayisi veya katilimci listesi response'a eklenmez. Web detay sayfasindaki kayit paneli once `/auth/me` ile oturumu cozer, ardindan bu status endpointini kullanir.
+
 ## QR Katilim Yaklasimi
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.
@@ -74,7 +76,7 @@ Public event response'lari `createdById`, kullanici e-postasi, uyelik bilgisi, r
 
 Event registration response'u yalniz `id`, `eventId`, `userId` ve `registeredAt` alanlarini dondurur; istemciden gonderilen kullanici, rol veya token bilgisi dikkate alinmaz.
 
-Web public etkinlik kartlari da yalniz public response alanlarini render eder: baslik, kulup adi, tarih/saat, konum, aciklama, kapasite ve yayin durumu. Development auth paneli yalniz development ortaminda gorunur ve public liste fetch'inden ayri tutulur.
+Web public etkinlik kartlari da yalniz public response alanlarini render eder: baslik, kulup adi, tarih/saat, konum, aciklama, kapasite ve yayin durumu. Detay sayfasindaki ogrenci kayit paneli sadece oturum, rol ve kullanicinin kendi kayit durumunu gosterir; kontenjan sayisi veya katilimci listesi gostermez. Development auth paneli yalniz development ortaminda gorunur ve public liste fetch'inden ayri tutulur.
 
 Public detail sayfasi metadata title degerini etkinlik basligindan, description degerini etkinlik aciklamasinin normalize edilmis ve kisaltilmis ozetinden uretir. Metadata icinde internal alan, kullanici bilgisi veya gizli veri bulunmaz. Ayni request yasam dongusunde metadata ve sayfa verisi icin `cache()` ile tekrar azaltimi uygulanir.
 

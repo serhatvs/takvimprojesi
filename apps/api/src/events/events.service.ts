@@ -411,6 +411,35 @@ export class EventsService {
     }
   }
 
+  async getEventRegistrationStatus(principal: Principal, eventId: string) {
+    this.assertValidEventId(eventId);
+
+    if (!principal.globalRoles.includes("STUDENT")) {
+      throw new ForbiddenException("Only students can view event registration status.");
+    }
+
+    const event = await this.prisma.event.findFirst({
+      where: {
+        id: eventId,
+        status: "PUBLISHED"
+      },
+      select: { id: true }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    return this.prisma.eventRegistration.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId: principal.userId
+        }
+      }
+    });
+  }
+
   private validateCreateDraftEvent(dto: CreateDraftEventDto): ValidCreateDraftEventInput {
     const clubId = this.requiredString(dto.clubId, "clubId");
     const title = this.requiredString(dto.title, "title");

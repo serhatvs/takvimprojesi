@@ -1,5 +1,13 @@
-import type { PublicEventDetailResponse, PublicEventListItem } from "@agu/contracts";
+import type { AuthPrincipal, PublicEventDetailResponse, PublicEventListItem } from "@agu/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  buildRegistrationStatusPath,
+  buildRegistrationSubmitPath,
+  hasStudentRole,
+  messageForRegistrationConflict,
+  stateFromRegistrationStatus,
+  viewForRegistrationState
+} from "./event-registration";
 import {
   buildPublicEventDetailHref,
   buildPublicEventsApiPath,
@@ -31,6 +39,21 @@ const publicEvent: PublicEventListItem = {
 };
 
 const detailEvent: PublicEventDetailResponse = publicEvent;
+const studentPrincipal: AuthPrincipal = {
+  userId: "student-id",
+  email: "student.dev@agu.edu.tr",
+  displayName: "Student",
+  globalRoles: ["STUDENT"],
+  clubMemberships: []
+};
+
+const pressPrincipal: AuthPrincipal = {
+  userId: "press-id",
+  email: "press.dev@agu.edu.tr",
+  displayName: "Press",
+  globalRoles: ["PRESS_EDITOR"],
+  clubMemberships: []
+};
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -257,5 +280,89 @@ describe("public event helpers", () => {
 
     expect(description).toHaveLength(155);
     expect(description.endsWith("…")).toBe(true);
+  });
+
+  it("detects student access for registration controls", () => {
+    expect(hasStudentRole(studentPrincipal)).toBe(true);
+    expect(hasStudentRole(pressPrincipal)).toBe(false);
+  });
+
+  it("shows the anonymous registration state without a join button", () => {
+    expect(viewForRegistrationState({ kind: "anonymous" })).toMatchObject({
+      message: "Katılmak için öğrenci hesabıyla giriş yapmalısınız.",
+      showJoinButton: false
+    });
+  });
+
+  it("does not show a join button for users without student access", () => {
+    expect(viewForRegistrationState({ kind: "forbidden" })).toMatchObject({
+      showJoinButton: false,
+      message: "Bu etkinliğe kayıt olmak için öğrenci rolü gerekir."
+    });
+  });
+
+  it("shows the join button for students without a registration", () => {
+    const state = stateFromRegistrationStatus({
+      registered: false,
+      registration: null
+    });
+
+    expect(viewForRegistrationState(state)).toMatchObject({
+      showJoinButton: true,
+      buttonDisabled: false
+    });
+  });
+
+  it("does not show the join button for registered students", () => {
+    const state = stateFromRegistrationStatus({
+      registered: true,
+      registration: {
+        id: "registration-id",
+        eventId: "event-1",
+        userId: "student-id",
+        registeredAt: "2026-07-23T12:00:00.000Z"
+      }
+    });
+
+    expect(viewForRegistrationState(state)).toMatchObject({
+      message: "Bu etkinliğe kayıtlısınız.",
+      showJoinButton: false,
+      registeredAtLabel: "23 Temmuz 2026 Perşembe 15:00"
+    });
+  });
+
+  it("builds registration endpoints with encoded event IDs", () => {
+    expect(buildRegistrationStatusPath("event 1/unsafe")).toBe(
+      "/events/event%201%2Funsafe/registration"
+    );
+    expect(buildRegistrationSubmitPath("event 1/unsafe")).toBe(
+      "/events/event%201%2Funsafe/register"
+    );
+  });
+
+  it("disables the join button while a registration request is pending", () => {
+    expect(viewForRegistrationState({ kind: "submitting" })).toMatchObject({
+      showJoinButton: true,
+      buttonDisabled: true
+    });
+  });
+
+  it("maps registration conflicts to safe messages", () => {
+    expect(messageForRegistrationConflict("User is already registered for this event.")).toBe(
+      "Bu etkinliğe zaten kayıtlısınız."
+    );
+    expect(messageForRegistrationConflict("Event capacity is full.")).toBe(
+      "Etkinlik kapasitesi dolu."
+    );
+    expect(messageForRegistrationConflict("Registration is closed for started events.")).toBe(
+      "Etkinlik başladığı için kayıt yapılamıyor."
+    );
+  });
+
+  it("keeps network registration errors controlled", () => {
+    expect(viewForRegistrationState({ kind: "error", message: "API bağlantısı kurulamadı." })).toMatchObject({
+      showJoinButton: false,
+      message: "API bağlantısı kurulamadı."
+    });
   });
 });

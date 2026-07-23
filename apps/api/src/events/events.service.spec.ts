@@ -83,6 +83,8 @@ type CreateServiceOptions = {
   registrationCount?: number;
   registrationCounts?: number[];
   registrationCreateFailsUnique?: boolean;
+  registrationStatusEvent?: boolean;
+  registrationStatusRegistration?: boolean;
 };
 
 function createService({
@@ -106,7 +108,9 @@ function createService({
   existingRegistration = false,
   registrationCount = 0,
   registrationCounts,
-  registrationCreateFailsUnique = false
+  registrationCreateFailsUnique = false,
+  registrationStatusEvent = true,
+  registrationStatusRegistration = false
 }: CreateServiceOptions = {}) {
   const createdEvent = {
     id: "event-id",
@@ -150,10 +154,28 @@ function createService({
         status: existingStatus,
         createdById: "club-admin-id"
       }),
-      findFirst: vi.fn().mockResolvedValue(publicDetail),
+      findFirst: vi.fn().mockImplementation((args) => {
+        if (args?.select?.club) {
+          return Promise.resolve(publicDetail);
+        }
+
+        return Promise.resolve(registrationStatusEvent ? { id: "event-id" } : null);
+      }),
       findMany: vi.fn().mockResolvedValue(publicItems),
       count: vi.fn().mockResolvedValue(publicCount),
       create: vi.fn().mockResolvedValue(createdEvent)
+    },
+    eventRegistration: {
+      findUnique: vi.fn().mockResolvedValue(
+        registrationStatusRegistration
+          ? {
+              id: "registration-id",
+              eventId: "11111111-1111-4111-8111-111111111111",
+              userId: "student-id",
+              registeredAt: new Date("2026-07-23T12:00:00.000Z")
+            }
+          : null
+      )
     },
     $transaction: vi.fn(async (callback) => {
       const transaction = {
@@ -534,6 +556,52 @@ describe("EventsService", () => {
 
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+  });
+
+  it("returns only the authenticated student's registration status", async () => {
+    const { service, prisma } = createService({ registrationStatusRegistration: true });
+
+    const registration = await service.getEventRegistrationStatus(
+      student,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(registration).toMatchObject({
+      eventId: "11111111-1111-4111-8111-111111111111",
+      userId: student.userId
+    });
+    expect(prisma.eventRegistration.findUnique).toHaveBeenCalledWith({
+      where: {
+        eventId_userId: {
+          eventId: "11111111-1111-4111-8111-111111111111",
+          userId: student.userId
+        }
+      }
+    });
+  });
+
+  it("returns null when the authenticated student has no registration", async () => {
+    const { service } = createService({ registrationStatusRegistration: false });
+
+    await expect(
+      service.getEventRegistrationStatus(student, "11111111-1111-4111-8111-111111111111")
+    ).resolves.toBeNull();
+  });
+
+  it("rejects registration status for users without the student role", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.getEventRegistrationStatus(pressEditor, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("returns not found for non-public registration status events", async () => {
+    const { service } = createService({ registrationStatusEvent: false });
+
+    await expect(
+      service.getEventRegistrationStatus(student, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("creates a draft event for an authorized club admin", async () => {

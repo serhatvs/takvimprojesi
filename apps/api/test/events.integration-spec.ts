@@ -37,6 +37,7 @@ describe("POST /events", () => {
   let otherClubAdminCookie: string;
   let clubAdminId: string;
   let studentId: string;
+  let clubMemberId: string;
   let pressEditorId: string;
 
   beforeAll(async () => {
@@ -140,6 +141,10 @@ describe("POST /events", () => {
       .send({ email: "club.member.dev@agu.edu.tr" })
       .expect(201);
     clubMemberCookie = getSessionCookie(clubMemberLogin.headers["set-cookie"]);
+    const clubMember = await prisma.user.findUniqueOrThrow({
+      where: { email: "club.member.dev@agu.edu.tr" }
+    });
+    clubMemberId = clubMember.id;
 
     const pressLogin = await request(app.getHttpServer())
       .post("/auth/dev-login")
@@ -1130,6 +1135,109 @@ describe("POST /events", () => {
     const statuses = responses.map((response) => response.status).sort();
     expect(statuses).toEqual([201, 409]);
     expect(await prisma.eventRegistration.count({ where: { eventId: event.id } })).toBe(1);
+  });
+
+  it("returns 401 when checking registration status without authentication", async () => {
+    const event = await createPublicEvent("integration-registration-event-status-unauth", {
+      title: "Registration Status Unauth Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer()).get(`/events/${event.id}/registration`).expect(401);
+  });
+
+  it("returns registered false when the student has no registration", async () => {
+    const event = await createPublicEvent("integration-registration-event-status-empty", {
+      title: "Registration Status Empty Event",
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/events/${event.id}/registration`)
+      .set("Cookie", studentCookie)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      registered: false,
+      registration: null
+    });
+  });
+
+  it("returns only the current student's registration status", async () => {
+    const event = await createPublicEvent("integration-registration-event-status-current-user", {
+      title: "Registration Status Current User Event",
+      status: "PUBLISHED"
+    });
+
+    await prisma.eventRegistration.create({
+      data: {
+        eventId: event.id,
+        userId: clubMemberId
+      }
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/events/${event.id}/registration`)
+      .set("Cookie", studentCookie)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      registered: false,
+      registration: null
+    });
+  });
+
+  it("returns the authenticated student's registration status when registered", async () => {
+    const event = await createPublicEvent("integration-registration-event-status-registered", {
+      title: "Registration Status Registered Event",
+      status: "PUBLISHED"
+    });
+
+    const registration = await prisma.eventRegistration.create({
+      data: {
+        eventId: event.id,
+        userId: studentId
+      }
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/events/${event.id}/registration`)
+      .set("Cookie", studentCookie)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      registered: true,
+      registration: {
+        id: registration.id,
+        eventId: event.id,
+        userId: studentId,
+        registeredAt: expect.any(String)
+      }
+    });
+  });
+
+  it("returns 403 for registration status when the user is not a student", async () => {
+    const event = await createPublicEvent("integration-registration-event-status-non-student", {
+      title: "Registration Status Non Student Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer())
+      .get(`/events/${event.id}/registration`)
+      .set("Cookie", pressCookie)
+      .expect(403);
+  });
+
+  it("returns 404 for registration status on non-public events", async () => {
+    const event = await createPublicEvent("integration-registration-event-status-draft", {
+      title: "Registration Status Draft Event",
+      status: "DRAFT"
+    });
+
+    await request(app.getHttpServer())
+      .get(`/events/${event.id}/registration`)
+      .set("Cookie", studentCookie)
+      .expect(404);
   });
 
   it("keeps existing submit, review, and publish routes working alongside public detail", async () => {

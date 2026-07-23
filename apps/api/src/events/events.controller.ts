@@ -33,6 +33,19 @@ export class EventsController {
     return toPublicEventDetailResponse(event);
   }
 
+  @Get(":eventId/registration")
+  @UseGuards(AuthenticationGuard)
+  async getRegistrationStatus(
+    @CurrentUser() principal: Principal,
+    @Param("eventId") eventId: string
+  ) {
+    const registration = await this.eventsService.getEventRegistrationStatus(principal, eventId);
+    return {
+      registered: registration !== null,
+      registration: registration ? toEventRegistrationResponse(registration) : null
+    };
+  }
+
   @Post()
   @UseGuards(AuthenticationGuard)
   async createDraftEvent(@CurrentUser() principal: Principal, @Body() body: CreateDraftEventDto) {

@@ -21,7 +21,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Onaylanan etkinliklerin yayinlanmasi ve yayinlanmis etkinliklerin public liste/detay API'leriyle kampus takvimine hazir hale gelmesi.
 - Ana sayfada yayinlanmis ve yaklasan etkinliklerin arama, tarih filtresi ve sayfalama ile listelenmesi.
 - Yayinlanmis etkinlikler icin public detay sayfasinda etkinlik bilgilerini goruntuleme.
-- Ogrencinin yayinlanmis ve henuz baslamamis etkinlige tekil kayit olmasi.
+- Ogrencinin yayinlanmis ve henuz baslamamis etkinlige detay sayfasindan tekil kayit olmasi ve kendi kayit durumunu gormesi.
 - Tekil attendance kaydi icin veri modeli.
 - QR token ham degerini saklamadan katilim dogrulama mimarisi.
 - Audit log ve bildirim adaptoru icin baslangic sinirlari.
@@ -41,7 +41,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Basin Yayin editoru aciklama ekleyerek onaylar, reddeder veya degisiklik ister.
 - Herkes yayinlanmis gelecek etkinlikleri ana sayfadaki kampus takviminde arar, tarih araligina gore filtreler ve listeler.
 - Herkes yayinlanmis bir etkinligin public detay sayfasini acar ve filtreleri korunmus sekilde listeye donebilir.
-- Ogrenci yayinlanmis ve henuz baslamamis etkinlige kapasite uygunsa bir kez kayit olur.
+- Ogrenci yayinlanmis ve henuz baslamamis etkinlige kapasite uygunsa detay sayfasindan bir kez kayit olur; sayfa yenilendiginde kayitli durumu korunur.
 - Ogrenci etkinlik gunu QR ile yalnizca bir attendance kaydi olusturur.
 - Kulup yoneticisi etkinlik katilim sayilarini gorur.
 

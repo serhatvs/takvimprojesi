@@ -341,6 +341,46 @@ h1 {
   gap: 16px;
 }
 
+.registration-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  border-top: 1px solid #d7dde3;
+  padding-top: 18px;
+}
+
+.registration-panel h2 {
+  margin-bottom: 0;
+  font-size: 1rem;
+}
+
+.registration-panel p {
+  margin-bottom: 0;
+  color: #52616b;
+  line-height: 1.45;
+}
+
+.registration-panel button {
+  min-height: 42px;
+  border: 1px solid #0b6f61;
+  border-radius: 8px;
+  background: #0b6f61;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.registration-panel button:focus {
+  outline: 3px solid #80bfff;
+  outline-offset: 2px;
+}
+
+.registration-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .health-panel h2 {
   margin-bottom: 8px;
   font-size: 1rem;
