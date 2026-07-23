@@ -66,6 +66,56 @@ h1 {
   padding-top: 24px;
 }
 
+.dev-auth-panel {
+  display: grid;
+  gap: 16px;
+  border-top: 1px solid #d7dde3;
+  margin-top: 24px;
+  padding-top: 24px;
+}
+
+.dev-auth-panel h2 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.dev-auth-panel p {
+  margin-bottom: 0;
+  color: #52616b;
+}
+
+.dev-auth-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dev-auth-controls select,
+.dev-auth-controls button {
+  min-height: 40px;
+  border: 1px solid #cfd8df;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2933;
+  font: inherit;
+}
+
+.dev-auth-controls select {
+  min-width: min(100%, 280px);
+  padding: 0 10px;
+}
+
+.dev-auth-controls button {
+  padding: 0 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dev-auth-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .health-panel h2 {
   margin-bottom: 8px;
   font-size: 1rem;

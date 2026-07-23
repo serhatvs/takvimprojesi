@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { defineConfig, env } from "prisma/config";
 
-config({ path: new URL("../../.env", import.meta.url).pathname });
+config({ path: new URL("../../.env", import.meta.url).pathname, quiet: true });
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

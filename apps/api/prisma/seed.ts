@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, RoleName } from "@prisma/client";
 
-config({ path: new URL("../../../.env", import.meta.url).pathname });
+config({ path: new URL("../../../.env", import.meta.url).pathname, quiet: true });
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is required to run the development seed.");

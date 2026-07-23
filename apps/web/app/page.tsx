@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "@agu/config";
 import type { HealthResponse } from "@agu/contracts";
 import { StatusBadge } from "@agu/ui";
+import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,15 @@ async function getApiHealth(): Promise<HealthResponse | null> {
 
 export default async function HomePage() {
   const health = await getApiHealth();
+  const showDevAuth =
+    process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_ENABLE_DEV_AUTH === "true";
+  const apiBaseUrl = getApiBaseUrl();
+  let devAuthPanel: ReactNode = null;
+
+  if (showDevAuth) {
+    const { DevAuthPanel } = await import("./dev-auth-panel");
+    devAuthPanel = <DevAuthPanel apiBaseUrl={apiBaseUrl} />;
+  }
 
   return (
     <main className="page-shell">
@@ -37,7 +47,7 @@ export default async function HomePage() {
       <section className="health-panel" aria-label="API health">
         <div>
           <h2>API baglantisi</h2>
-          <p>{getApiBaseUrl()}</p>
+          <p>{apiBaseUrl}</p>
         </div>
         {health ? (
           <StatusBadge tone="success">
@@ -47,6 +57,8 @@ export default async function HomePage() {
           <StatusBadge tone="warning">API health endpointine erisilemiyor</StatusBadge>
         )}
       </section>
+
+      {devAuthPanel}
     </main>
   );
 }

@@ -36,6 +36,25 @@ export interface HealthResponse {
   checkedAt: string;
 }
 
+export interface AuthClubMembership {
+  clubId: string;
+  clubSlug: string;
+  clubName: string;
+  role: "MEMBER" | "ADMIN";
+}
+
+export interface AuthPrincipal {
+  userId: string;
+  email: string;
+  displayName: string;
+  globalRoles: UserRole[];
+  clubMemberships: AuthClubMembership[];
+}
+
+export interface AuthMeResponse {
+  user: AuthPrincipal;
+}
+
 export interface EventSummary {
   id: string;
   title: string;

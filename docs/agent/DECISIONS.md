@@ -36,3 +36,9 @@
   - Gerekce: Next 16 Turbopack build `.next` artefacti uzerinde I/O beklemesine girdi; webpack builder ayni uygulamayi basariyla derledi.
 - Prisma config ve seed root `.env` dosyasini acik path ile yukler.
   - Gerekce: pnpm filter komutlari `apps/api` cwd'sinde calistigi icin root `.env` otomatik bulunmuyordu.
+- Gelistirme auth siniri HttpOnly cookie icinde kisa omurlu imzali JWT kullanir.
+  - Gerekce: Session tablosu veya ham token saklama eklemeden gelistirme kullanicilariyla oturum siniri kurulabilir; payload yalnizca kullanici kimligi tasir.
+- Her korumali istekte principal veritabanindan yeniden cozulur.
+  - Gerekce: Kullanici rolleri ve kulup uyelikleri token'a gomulmez; istemciden veya eski token payload'indan gelen sahte yetkiler dikkate alinmaz.
+- Dev-login yalnizca `NODE_ENV !== "production"` ve `ENABLE_DEV_AUTH=true` iken calisir.
+  - Gerekce: Test hesapli giris siniri production'da yanlislikla kullanilabilir olmamalidir; gelecekte AGU SSO adapter'i auth modulunde bu sinirin yerini alacaktir.

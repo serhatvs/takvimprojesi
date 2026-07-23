@@ -20,11 +20,13 @@ PostgreSQL ana veri deposudur. Prisma schema domain iliskilerini, indeksleri ve 
 
 ## Kimlik Dogrulama Siniri
 
-Faz 1'de gercek AGU SSO yoktur. Test hesaplarina uygun bir auth siniri kurulacak ve gelecekte SSO'dan gelen kullanici kimligi ayni `User` modeline baglanacaktir.
+Faz 1'de gercek AGU SSO yoktur. Gelistirme ortaminda `ENABLE_DEV_AUTH=true` ve `NODE_ENV !== "production"` kosuluyla seed kullanicilari uzerinden `POST /auth/dev-login` kullanilir. Basarili giris kisa omurlu, HttpOnly cookie icinde tasinan imzali session token uretir. Token payload'i yalnizca kullanici kimligi ve standart zaman alanlarini tasir; rol veya kulup uyeligi listesi token'a gomulmez.
+
+`GET /auth/me` gibi korumali isteklerde API token'daki kullanici kimligini dogrular, ardindan kullaniciyi, global rollerini ve aktif kulup uyeliklerini veritabanindan tekrar cozer. Ham session token veritabaninda saklanmaz ve session tablosu yoktur. Bu sinir gelecekte AGU SSO adapter'i ile degistirilecek; SSO'dan gelen kalici kimlik ayni `User` kaydina map edilecektir.
 
 ## Yetkilendirme Yaklasimi
 
-Sistem rolleri coklu rol modeliyle tutulur. Kulup icindeki yetki `ClubMembership` uzerinden belirlenir. API endpointleri hem sistem rolunu hem ilgili kulup uyeligini dogrulamalidir.
+Sistem rolleri coklu rol modeliyle tutulur. Kulup icindeki yetki `ClubMembership` uzerinden belirlenir. API endpointleri hem sistem rolunu hem ilgili kulup uyeligini dogrulamalidir. Auth altyapisinda `AuthenticationGuard`, `CurrentUser`, global role decorator/guard ve kulup uyeligi sorgulamalari icin `AuthorizationService` siniri bulunur; controller icinde authorization is mantigi tutulmaz.
 
 ## QR Katilim Yaklasimi
 
@@ -40,8 +42,8 @@ Durum degisiklikleri ve kritik operasyonlar `AuditLog` ile izlenir. Log kaydi ac
 
 ## Guvenlik ve Kisisel Veri Minimizasyonu
 
-Yalnizca gerekli kullanici bilgileri saklanir. Gizli degerler repoya yazilmaz; `.env.example` yalnizca ornek degerleri tasir. QR token ham degeri kalici saklama zorunlulugu yoktur. Yetki kontrolleri API tarafinda uygulanir.
+Yalnizca gerekli kullanici bilgileri saklanir. Gizli degerler repoya yazilmaz; `.env.example` yalnizca ornek gelistirme degerleri tasir. Session secret `.env` uzerinden gelir. Session cookie `HttpOnly`, `SameSite=Lax` ve production ortaminda `Secure` olarak yazilir. QR token ham degeri kalici saklama zorunlulugu yoktur. Yetki kontrolleri API tarafinda uygulanir.
 
 ## Gelecekte AGU SSO Entegrasyon Noktasi
 
-SSO entegrasyonu auth modulunde adapter olarak eklenmelidir. SSO'dan gelen kalici kullanici tanimlayicisi, e-posta ve profil bilgileri `User` kaydina map edilir. Roller ve kulup uyelikleri uygulama verisi olarak ayrica yonetilmeye devam eder.
+SSO entegrasyonu auth modulunde adapter olarak eklenmelidir. Dev-login yalnizca gelistirme kolayligi icindir ve production'da kapali kalir. SSO'dan gelen kalici kullanici tanimlayicisi, e-posta ve profil bilgileri `User` kaydina map edilir. Roller ve kulup uyelikleri uygulama verisi olarak ayrica yonetilmeye devam eder.
