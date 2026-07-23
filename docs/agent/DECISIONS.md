@@ -64,3 +64,7 @@
   - Gerekce: Ogrencilerin etkinlik alanina erken gelmesi ve cikista yogunluk olmasi beklenir; pencere controller icinde sayi gommeden `packages/config` sabitleriyle uygulanir.
 - Attendance token karsilastirmasi SHA-256 hash ve `timingSafeEqual` ile yapilir.
   - Gerekce: Ham token saklanmaz, basit string karsilastirmasi kullanilmaz ve token rotation `qrTokenHash`/`qrTokenExpiresAt` alanlarini degistirerek eski tokeni gecersiz kilar.
+- Web QR gorseli icin `qrcode.react` yalniz `@agu/web` dependency'si olarak eklendi.
+  - Gerekce: QR algoritmasini elle yazmadan, mevcut React/Next arayuzunde bakimi yapilan kucuk bir renderer ile ham tokeni sadece client state ve QR payload icinde tutmak yeterlidir.
+- QR panel payload'i surumlenmis JSON olarak `version=1`, `eventId` ve `token` alanlarini tasir.
+  - Gerekce: Gelecekte kamera tarayici veya native istemci eklendiginde payload semasi genisletilebilir; token URL, storage, log veya statik HTML icine yazilmaz.

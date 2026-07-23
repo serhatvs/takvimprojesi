@@ -1,6 +1,15 @@
 import type { AuthPrincipal, PublicEventDetailResponse, PublicEventListItem } from "@agu/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildAttendanceTokenPath,
+  canManageAttendanceQr,
+  createAttendanceQrPayload,
+  formatRemainingTime,
+  messageForAttendanceQrError,
+  secondsUntilExpiry,
+  viewForAttendanceQrState
+} from "./attendance-qr";
+import {
   buildRegistrationStatusPath,
   buildRegistrationSubmitPath,
   hasStudentRole,
@@ -52,6 +61,55 @@ const pressPrincipal: AuthPrincipal = {
   email: "press.dev@agu.edu.tr",
   displayName: "Press",
   globalRoles: ["PRESS_EDITOR"],
+  clubMemberships: []
+};
+
+const clubAdminPrincipal: AuthPrincipal = {
+  userId: "club-admin-id",
+  email: "club.admin.dev@agu.edu.tr",
+  displayName: "Club Admin",
+  globalRoles: ["CLUB_ADMIN"],
+  clubMemberships: [
+    {
+      clubId: "club-1",
+      clubSlug: "agu-yazilim-kulubu",
+      clubName: "AGU Yazilim Kulubu",
+      role: "ADMIN"
+    }
+  ]
+};
+
+const otherClubAdminPrincipal: AuthPrincipal = {
+  ...clubAdminPrincipal,
+  userId: "other-club-admin-id",
+  clubMemberships: [
+    {
+      clubId: "club-2",
+      clubSlug: "baska-kulup",
+      clubName: "Baska Kulup",
+      role: "ADMIN"
+    }
+  ]
+};
+
+const clubMemberPrincipal: AuthPrincipal = {
+  ...clubAdminPrincipal,
+  userId: "club-member-id",
+  clubMemberships: [
+    {
+      clubId: "club-1",
+      clubSlug: "agu-yazilim-kulubu",
+      clubName: "AGU Yazilim Kulubu",
+      role: "MEMBER"
+    }
+  ]
+};
+
+const systemAdminPrincipal: AuthPrincipal = {
+  userId: "system-admin-id",
+  email: "system.admin.dev@agu.edu.tr",
+  displayName: "System Admin",
+  globalRoles: ["SYSTEM_ADMIN"],
   clubMemberships: []
 };
 
@@ -364,5 +422,119 @@ describe("public event helpers", () => {
       showJoinButton: false,
       message: "API bağlantısı kurulamadı."
     });
+  });
+
+  it("allows the event club admin and system admin to see attendance QR controls", () => {
+    expect(canManageAttendanceQr(clubAdminPrincipal, "club-1")).toBe(true);
+    expect(canManageAttendanceQr(systemAdminPrincipal, "club-1")).toBe(true);
+  });
+
+  it("hides attendance QR controls from other roles and other club admins", () => {
+    expect(canManageAttendanceQr(otherClubAdminPrincipal, "club-1")).toBe(false);
+    expect(canManageAttendanceQr(clubMemberPrincipal, "club-1")).toBe(false);
+    expect(canManageAttendanceQr(pressPrincipal, "club-1")).toBe(false);
+    expect(canManageAttendanceQr(studentPrincipal, "club-1")).toBe(false);
+  });
+
+  it("creates a versioned attendance QR payload", () => {
+    expect(JSON.parse(createAttendanceQrPayload("event-1", "token-1"))).toEqual({
+      version: 1,
+      eventId: "event-1",
+      token: "token-1"
+    });
+  });
+
+  it("keeps attendance token out of endpoint URLs and browser storage", () => {
+    const token = "secret-token";
+    const path = buildAttendanceTokenPath("event 1/unsafe");
+
+    createAttendanceQrPayload("event 1/unsafe", token);
+
+    expect(path).toBe("/events/event%201%2Funsafe/attendance-token");
+    expect(path).not.toContain(token);
+  });
+
+  it("disables attendance QR creation while a request is pending", () => {
+    expect(viewForAttendanceQrState({ kind: "issuing" })).toMatchObject({
+      visible: true,
+      showGenerateButton: true,
+      buttonDisabled: true
+    });
+  });
+
+  it("shows QR expiry and remaining time after a successful response", () => {
+    expect(
+      viewForAttendanceQrState({
+        kind: "ready",
+        tokenResponse: {
+          eventId: "event-1",
+          token: "token-1",
+          expiresAt: "2026-07-23T12:15:00.000Z"
+        },
+        remainingSeconds: 872
+      })
+    ).toMatchObject({
+      visible: true,
+      showQr: true,
+      buttonLabel: "QR’ı Yenile",
+      expiryLabel: "23 Temmuz 2026 Perşembe 15:15",
+      remainingLabel: "14 dakika 32 saniye kaldı"
+    });
+  });
+
+  it("uses the latest attendance token response when QR is refreshed", () => {
+    const firstPayload = createAttendanceQrPayload("event-1", "token-1");
+    const refreshedPayload = createAttendanceQrPayload("event-1", "token-2");
+
+    expect(firstPayload).not.toBe(refreshedPayload);
+    expect(JSON.parse(refreshedPayload)).toMatchObject({ token: "token-2" });
+  });
+
+  it("moves the attendance QR into an expired state without showing a QR", () => {
+    expect(viewForAttendanceQrState({ kind: "expired" })).toMatchObject({
+      visible: true,
+      message: "QR’ın süresi doldu.",
+      showQr: false,
+      showGenerateButton: true,
+      buttonDisabled: false
+    });
+  });
+
+  it("maps attendance QR errors to controlled messages", () => {
+    expect(messageForAttendanceQrError(401)).toBe("Oturumunuz sona ermiş. Tekrar giriş yapın.");
+    expect(messageForAttendanceQrError(403)).toBe(
+      "Bu etkinlik için yoklama QR’ı oluşturma yetkiniz yok."
+    );
+    expect(messageForAttendanceQrError(404)).toBe(
+      "Etkinlik bulunamadı veya artık kullanılamıyor."
+    );
+    expect(messageForAttendanceQrError(409)).toBe(
+      "Yoklama QR’ı yalnızca yayınlanmış etkinlikler için oluşturulabilir."
+    );
+    expect(messageForAttendanceQrError(500)).toBe("QR oluşturulamadı. Lütfen tekrar deneyin.");
+  });
+
+  it("does not put attendance tokens in visible view labels", () => {
+    const view = viewForAttendanceQrState({
+      kind: "ready",
+      tokenResponse: {
+        eventId: "event-1",
+        token: "plain-token",
+        expiresAt: "2026-07-23T12:15:00.000Z"
+      },
+      remainingSeconds: 60
+    });
+
+    expect(JSON.stringify(view)).not.toContain("plain-token");
+  });
+
+  it("calculates attendance QR remaining time from expiry", () => {
+    expect(
+      secondsUntilExpiry(
+        "2026-07-23T12:15:00.000Z",
+        new Date("2026-07-23T12:00:28.000Z")
+      )
+    ).toBe(872);
+    expect(formatRemainingTime(0)).toBe("0 saniye kaldı");
   });
 });

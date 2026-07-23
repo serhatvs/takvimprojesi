@@ -20,6 +20,8 @@ Web ana sayfasi public etkinlik listesini server component icinde `GET /events` 
 
 Web public etkinlik detayi `/events/[eventId]` route'u ile sunulur ve `GET /events/:eventId` endpointini kullanir. `eventId` API path'ine encode edilerek aktarilir; liste filtreleri detail URL query string'inde yalniz geri navigasyon icin korunur ve detail API istegine eklenmez. API `404` donerse Next.js `notFound()` mekanizmasi kullanilir ve public olmayan etkinliklerin varligi ifsa edilmez. API baglanti veya `5xx` hatalari `404` olarak gosterilmez; kontrollu hata durumu ve listeye donus baglantisi render edilir.
 
+Detay sayfasindaki yoklama yonetimi paneli yalniz `/auth/me` principal bilgisindeki `SYSTEM_ADMIN` rolune veya public event club ID'siyle eslesen aktif `ADMIN` kulup uyeligine sahip kullanicilar icin client tarafinda render edilir. Bu kontrol yalniz kullanici deneyimi icindir; `POST /events/:eventId/attendance-token` endpointindeki API authorization zorunlu kalir. Panel tokeni server render sirasinda istemez, QR payload'ini URL, history veya storage'a yazmaz ve ham tokeni yalniz client component state'inde tutar.
+
 ## Veritabani Yaklasimi
 
 PostgreSQL ana veri deposudur. Prisma schema domain iliskilerini, indeksleri ve benzersizlik kurallarini tanimlar. Migration dosyalari veri etkisi kontrol edilerek uretilmelidir. Tarihler UTC olarak saklanir.
@@ -60,6 +62,8 @@ Token uretimi `EVENT_ATTENDANCE_TOKEN_ISSUED` audit action'i ile kaydedilir. Aud
 
 `POST /events/:eventId/check-in` endpointi authentication ve `STUDENT` rolu gerektirir. Ogrencinin etkinlige kayitli olmasi, event status'unun `PUBLISHED` olmasi, token hash'inin guvenli karsilastirmayla dogrulanmasi ve tokenin suresinin dolmamis olmasi gerekir. MVP check-in penceresi etkinlik baslangicindan 30 dakika once acilir ve bitisten 60 dakika sonra kapanir; bu degerler `packages/config` sabitlerinde tutulur. Attendance create islemi transaction icinde calisir ve `@@unique([eventId, userId])` duplicate/eszamanli ikinci check-in'i `409 Conflict` sonucuna cevirir.
 
+Web QR paneli QR icerigini surumlenmis JSON payload olarak uretir: `version=1`, `eventId` ve ham `token`. Ham token metin olarak render edilmez; QR alt/aciklama metnine veya loglara yazilmaz. Kalan sure client tarafinda canli guncellenir; sure dolunca QR gizlenir, token state'i temizlenir ve kullanici yeni token uretmeye yonlendirilir.
+
 ## Bildirim Adaptoru Yaklasimi
 
 `Notification` modeli uygulama ici bildirimleri ve gelecekteki kanal metadata'sini tutar. E-posta, SMS veya push gibi saglayicilar adapter arkasina alinmali; domain servisi saglayici detaylarini bilmemelidir.
@@ -85,6 +89,8 @@ Public event response'lari `createdById`, kullanici e-postasi, uyelik bilgisi, r
 Event registration response'u yalniz `id`, `eventId`, `userId` ve `registeredAt` alanlarini dondurur; istemciden gonderilen kullanici, rol veya token bilgisi dikkate alinmaz.
 
 Web public etkinlik kartlari da yalniz public response alanlarini render eder: baslik, kulup adi, tarih/saat, konum, aciklama, kapasite ve yayin durumu. Detay sayfasindaki ogrenci kayit paneli sadece oturum, rol ve kullanicinin kendi kayit durumunu gosterir; kontenjan sayisi veya katilimci listesi gostermez. Development auth paneli yalniz development ortaminda gorunur ve public liste fetch'inden ayri tutulur.
+
+Detay sayfasindaki QR yoklama paneli yetkili olmayan kullanicilara render edilmez. Yetkili kullanicida ham token sadece buton tiklamasindan sonra client bellekte bulunur; statik HTML, metadata, URL, storage, hata mesaji veya accessibility label icine yazilmaz.
 
 Public detail sayfasi metadata title degerini etkinlik basligindan, description degerini etkinlik aciklamasinin normalize edilmis ve kisaltilmis ozetinden uretir. Metadata icinde internal alan, kullanici bilgisi veya gizli veri bulunmaz. Ayni request yasam dongusunde metadata ve sayfa verisi icin `cache()` ile tekrar azaltimi uygulanir.
 

@@ -22,7 +22,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Ana sayfada yayinlanmis ve yaklasan etkinliklerin arama, tarih filtresi ve sayfalama ile listelenmesi.
 - Yayinlanmis etkinlikler icin public detay sayfasinda etkinlik bilgilerini goruntuleme.
 - Ogrencinin yayinlanmis ve henuz baslamamis etkinlige detay sayfasindan tekil kayit olmasi ve kendi kayit durumunu gormesi.
-- Kulup yoneticisinin kisa omurlu QR katilim tokeni uretmesi.
+- Kulup yoneticisinin etkinlik detay sayfasinda kisa omurlu QR katilim tokeni uretmesi, QR gorselini yenileyebilmesi ve kalan sureyi gorebilmesi.
 - Kayitli ogrencinin etkinlik gunu QR token ile tekil attendance kaydi olusturmasi.
 - QR token ham degerini saklamadan katilim dogrulama mimarisi.
 - Audit log ve bildirim adaptoru icin baslangic sinirlari.
@@ -43,7 +43,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Herkes yayinlanmis gelecek etkinlikleri ana sayfadaki kampus takviminde arar, tarih araligina gore filtreler ve listeler.
 - Herkes yayinlanmis bir etkinligin public detay sayfasini acar ve filtreleri korunmus sekilde listeye donebilir.
 - Ogrenci yayinlanmis ve henuz baslamamis etkinlige kapasite uygunsa detay sayfasindan bir kez kayit olur; sayfa yenilendiginde kayitli durumu korunur.
-- Kulup yoneticisi etkinlik gunu katilim icin kisa omurlu QR token uretir.
+- Kulup yoneticisi etkinlik gunu katilim icin kisa omurlu QR token uretir, QR gorselini katilim noktasinda gosterir ve gerekirse yeniler.
 - Kayitli ogrenci etkinlik gunu QR token ile yalnizca bir attendance kaydi olusturur.
 - Kulup yoneticisi etkinlik katilim sayilarini gorur.
 
@@ -60,7 +60,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Tarihler veritabaninda UTC saklanir, arayuzde `Europe/Istanbul` olarak gosterilir.
 - Bir kullanici birden fazla sistem rolune sahip olabilir.
 - Kulup icindeki yetki `ClubMembership.role` uzerinden belirlenir.
-- QR tokenin yalnizca hash veya turetilmis dogrulama verisi saklanir.
+- QR tokenin yalnizca hash veya turetilmis dogrulama verisi saklanir; web arayuzunde ham token sadece QR uretildikten sonra client component belleginde tutulur.
 - Faz 1'de kimlik dogrulama test hesaplariyla sinirlandirilir.
 
 ## Acik Sorular

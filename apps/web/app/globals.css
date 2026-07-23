@@ -341,7 +341,8 @@ h1 {
   gap: 16px;
 }
 
-.registration-panel {
+.registration-panel,
+.attendance-qr-panel {
   display: grid;
   gap: 12px;
   margin-top: 20px;
@@ -349,18 +350,21 @@ h1 {
   padding-top: 18px;
 }
 
-.registration-panel h2 {
+.registration-panel h2,
+.attendance-qr-panel h2 {
   margin-bottom: 0;
   font-size: 1rem;
 }
 
-.registration-panel p {
+.registration-panel p,
+.attendance-qr-panel p {
   margin-bottom: 0;
   color: #52616b;
   line-height: 1.45;
 }
 
-.registration-panel button {
+.registration-panel button,
+.attendance-qr-panel button {
   min-height: 42px;
   border: 1px solid #0b6f61;
   border-radius: 8px;
@@ -371,14 +375,42 @@ h1 {
   cursor: pointer;
 }
 
-.registration-panel button:focus {
+.registration-panel button:focus,
+.attendance-qr-panel button:focus {
   outline: 3px solid #80bfff;
   outline-offset: 2px;
 }
 
-.registration-panel button:disabled {
+.registration-panel button:disabled,
+.attendance-qr-panel button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
+}
+
+.attendance-qr-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attendance-qr-status {
+  display: grid;
+  gap: 6px;
+}
+
+.attendance-qr-code {
+  display: grid;
+  justify-content: center;
+  border: 1px solid #d7dde3;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.attendance-qr-code svg {
+  width: min(100%, 220px);
+  height: auto;
 }
 
 .health-panel h2 {
