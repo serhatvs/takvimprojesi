@@ -2,7 +2,7 @@
 
 ## Mevcut Asama
 
-Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi ve kulüp yönetim paneli (dashboard) tamamlandi: kulup etkinlik olusturur, onaya gonderir, Basin Yayin karar verir, etkinlik yayinlanir, ogrenci kayit olur, QR ile yoklama verir ve kulup katilim ozetini gorur. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, event lifecycle API'leri, public liste/detay, registration, QR attendance, ogrenci `/check-in` ekrani, attendance summary API'si ve detay sayfasi katilim ozeti paneli tamamlandi. Ayrica, kulup yöneticilerinin kendi yetkili olduklari kulupleri gorebildikleri, kuluplerini secip ilgili kulupten yayinlanmis veya taslak/onaydaki tum etkinlikleri listeleyebildikleri `/club-dashboard` arayuzu ve destekleyici endpointler (`GET /clubs/manageable`, `GET /clubs/:clubId/events`) gelistirildi. Son urun commit'ine ilerleniyor; yeni agent icin ana devir belgesi `docs/agent/HANDOFF.md`.
+Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi ve kulüp yönetim paneli (dashboard) tamamlandi: kulup etkinlik olusturur, onaya gonderir, Basin Yayin karar verir, etkinlik yayinlanir, ogrenci kayit olur, QR ile yoklama verir ve kulup katilim ozetini gorur. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, event lifecycle API'leri, public liste/detay, registration, QR attendance, ogrenci `/check-in` ekrani, attendance summary API'si ve detay sayfasi katilim ozeti paneli tamamlandi. Ayrica, kulup yöneticilerinin kendi yetkili olduklari kulupleri gorebildikleri, kuluplerini secip ilgili kulupten yayinlanmis veya taslak/onaydaki tum etkinlikleri listeleyebildikleri `/club-dashboard` arayuzu ve buradan ulasilabilen taslak etkinlik olusturma (`/club-dashboard/events/new`) arayuzu gelistirildi. Son urun commit'ine ilerleniyor; yeni agent icin ana devir belgesi `docs/agent/HANDOFF.md`.
 
 ## Tamamlanan Isler
 
@@ -66,6 +66,7 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi ve kul�
 - `GET /clubs/manageable` eklendi; oturum acmis kullanicinin (kulup uyesi veya ADMIN/SYSTEM_ADMIN) yetkili oldugu kulupleri listeleyerek yetkilendirme sinirlarini api'de de uygulayarak dondurur.
 - `GET /clubs/:clubId/events` eklendi; kullanicinin yetkili oldugu kulupten yayinda olan, onaya gonderilmis ve taslak dahil tum etkinlikleri sirali olarak getirir; status ve arama (q) filtrelerini destekler.
 - Web `/club-dashboard` route'u eklendi; kullaniciya yonetebildigi kulupleri dropdown menu ile secme ve kulupten listelenen etkinlikleri kart veya liste seklinde tum metrikleri/durumuyla gorme imkani saglar.
+- Web `/club-dashboard/events/new` route'u ve client formu eklendi; kulup yoneticisi yonetebildigi kulubu secerek taslak etkinlik olusturabilir ve olusturulan taslaklar basariyla kaydedildikten sonra dashboard'a donulur.
 
 ## Calisan Komutlar
 

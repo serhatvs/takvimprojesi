@@ -131,7 +131,15 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
 
       eventsContent = (
         <div className="events-panel">
-          <h2 className="section-heading">Kulüp Etkinlikleri</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-4)' }}>
+            <h2 className="section-heading" style={{ margin: 0 }}>Kulüp Etkinlikleri</h2>
+            <Link 
+              href={`/club-dashboard/events/new?clubId=${selectedClubId}`} 
+              className="primary-action"
+            >
+              Yeni Etkinlik Oluştur
+            </Link>
+          </div>
           
           {countsGrid}
           

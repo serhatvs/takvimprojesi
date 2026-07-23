@@ -374,7 +374,7 @@ Davranislar:
 - Yetkili QR yonetim paneli: Sadece event kulubu aktif `ADMIN` veya `SYSTEM_ADMIN`; token uretir, QR gorseli ve expiry/kalan sure gosterir, refresh eder.
 - Ogrenci kamera/manual check-in ekrani: `/check-in`; once `/auth/me`, sonra `STUDENT` kontrolu. Kamera sadece kullanici aksiyonuyla baslar; manuel JSON payload yedegi vardir.
 - Attendance summary paneli: Detail sayfasinda sadece event kulubu aktif `ADMIN` veya `SYSTEM_ADMIN`; `GET /events/:eventId/attendance-summary` ile toplam metrikleri gosterir ve manuel refresh yapar.
-- Kulup Dashboard: `/club-dashboard`; `GET /clubs/manageable` ile kulupleri secer, `GET /clubs/:clubId/events` ile etkinlikleri status/q filtreleriyle listeler. Kulupten olmayan kullanicilar 403 alir.
+- Kulup Dashboard: `/club-dashboard`; `GET /clubs/manageable` ile kulupleri secer, `GET /clubs/:clubId/events` ile etkinlikleri status/q filtreleriyle listeler. Kulupten olmayan kullanicilar 403 alir. Ayrica buradan taslak etkinlik olusturma ekranina (`/club-dashboard/events/new`) erisilir.
 
 Panel gorunurlukleri:
 
