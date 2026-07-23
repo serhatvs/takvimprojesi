@@ -1,0 +1,38 @@
+# Decisions
+
+## 2026-07-23
+
+- TypeScript monorepo icin pnpm workspace ve Turborepo kullanildi.
+  - Gerekce: Uygulamalar ve paylasilan paketler arasinda build/test siralamasi netlesir.
+- Web uygulamasi Next.js App Router, API NestJS REST olarak ayrildi.
+  - Gerekce: UI ve domain/API sorumluluklari temiz sinirlanir.
+- Paylasilan rol, durum ve lifecycle contractlari `packages/contracts` icine alindi.
+  - Gerekce: Web ve API ayni domain sozlugunu kullanir.
+- Kullanici rolleri coklu `UserRole` join modeliyle tasarlandi.
+  - Gerekce: Bir kullanicinin birden fazla sistem rolune sahip olmasi gerekir.
+- Kulup yetkisi `ClubMembership.role` uzerinden modellendi.
+  - Gerekce: Sistem rolu ile kulup icindeki yetki ayni kavram degildir.
+- Event registration ve attendance icin `@@unique([eventId, userId])` kullanildi.
+  - Gerekce: Tekil kayit ve tekil katilim veritabani seviyesinde korunur.
+- QR token ham degeri yerine opsiyonel `qrTokenHash` alani tanimlandi.
+  - Gerekce: Kalici ham token saklama zorunlulugu olmadan dogrulama yapilabilir.
+- Tarihlerin UTC saklanmasi ve UI'da `Europe/Istanbul` gosterimi kabul edildi.
+  - Gerekce: Veritabani tutarliligi ve yerel kullanici deneyimi ayrilir.
+- Prisma 7 icin datasource URL `schema.prisma` yerine `apps/api/prisma.config.ts` icine tasindi.
+  - Gerekce: Prisma 7 schema dosyalarinda `datasource.url` desteklemiyor.
+- Shared paketler CommonJS ciktisi uretecek sekilde ayarlandi.
+  - Gerekce: NestJS API CommonJS runtime ile paylasilan contract/config paketlerini sorunsuz tuketebilsin.
+- TypeScript 5.9.3 kullanildi.
+  - Gerekce: Next, Nest, Prisma ve typescript-eslint peer ekosistemi icin TypeScript 7'ye gore daha stabil baslangic noktasi.
+- Proje Node 24.x ve pnpm 11.16.0 ile sabitlendi.
+  - Gerekce: Prisma 7 mevcut Node 26.4.0 ortaminda destek uyarisi veriyor; dogrulanan major surum Node 24 olmalidir.
+- `.agents/skills` altindaki generic workflow skill'leri kaldirildi.
+  - Gerekce: Repo-local skill'ler AGU domainine ozel tekrar eden kurallara ayrilmali; genel agent akislari bu repoda tutulmamalidir.
+- PostgreSQL host portu `5433:5432` olarak degistirildi.
+  - Gerekce: Dogrulama ortaminda `5432` baska bir container tarafindan kullaniliyordu; mevcut container'a mudahale etmeden AGU servisini baslatmak gerekir.
+- Pnpm proje config'i `storeDir: .pnpm-store` ve `packageImportMethod: copy` olarak ayarlandi.
+  - Gerekce: Paylasilan `/data/.pnpm-store` ve hardlink/clone import finalizasyonu bu filesystem ortaminda takildi; proje-local store ve copy import lockfile/dependency surumlerini degistirmeden kurulumu stabilize etti.
+- Web production build script'i `next build --webpack` olarak ayarlandi.
+  - Gerekce: Next 16 Turbopack build `.next` artefacti uzerinde I/O beklemesine girdi; webpack builder ayni uygulamayi basariyla derledi.
+- Prisma config ve seed root `.env` dosyasini acik path ile yukler.
+  - Gerekce: pnpm filter komutlari `apps/api` cwd'sinde calistigi icin root `.env` otomatik bulunmuyordu.

@@ -1,0 +1,30 @@
+{
+  "name": "@agu/ui",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run \"src/**/*.integration-spec.ts\" \"test/**/*.integration-spec.ts\" --passWithNoTests"
+  },
+  "dependencies": {
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

@@ -1,0 +1,65 @@
+# AGU Kampus Takvimi PRD
+
+## Problem
+
+AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merkezi takip edilemiyor ve etkinlik katilimi guvenilir bicimde olculmuyor. Kulup yetkilileri etkinlik yayinlamak icin net bir is akisina, Basin Yayin ekibi yayin oncesi kontrol noktasina, ogrenciler de guncel kampus takvimine ihtiyac duyuyor.
+
+## Kullanicilar
+
+- Ogrenci: Etkinlikleri gorur, kayit olur ve etkinlik gunu QR ile katilim verir.
+- Kulup uyesi: Kulup etkinliklerini takip eder, ileride yetkisine gore katkida bulunabilir.
+- Kulup yoneticisi: Etkinlik olusturur, onaya gonderir, katilim istatistiklerini gorur.
+- Basin Yayin editoru: Etkinlikleri inceler, onaylar, reddeder veya degisiklik ister.
+- Sistem yoneticisi: Roller, kulup kayitlari ve sistem ayarlari icin operasyonel yetkiye sahiptir.
+
+## Faz 1 Kapsami
+
+- Rol tabanli test hesaplari ile giris siniri.
+- Kulup ve kulup uyeligi modeli.
+- Etkinlik olusturma, onaya gonderme ve durum gecisi servis siniri.
+- Basin Yayin inceleme kayit modeli.
+- Onaylanan/yayinlanan etkinliklerin kampus takvimine hazir hale gelmesi.
+- Ogrenci kaydi ve tekil attendance kaydi icin veri modeli.
+- QR token ham degerini saklamadan katilim dogrulama mimarisi.
+- Audit log ve bildirim adaptoru icin baslangic sinirlari.
+
+## Kapsam Disi Ozellikler
+
+- Gercek AGU SSO entegrasyonu.
+- Tum urun ekranlari ve tamamlanmis tasarim sistemi.
+- E-posta, SMS veya push bildirimlerinin gercek saglayici entegrasyonlari.
+- Gelismis takvim filtreleri, tekrar eden etkinlikler ve mekan rezervasyonu.
+- Mobil uygulama.
+- Analitik dashboardlarin tamamlanmis hali.
+
+## Temel Kullanici Senaryolari
+
+- Kulup yoneticisi taslak etkinlik olusturur ve Basin Yayin onayina gonderir.
+- Basin Yayin editoru aciklama ekleyerek onaylar, reddeder veya degisiklik ister.
+- Ogrenci yayinlanmis etkinlige bir kez kayit olur.
+- Ogrenci etkinlik gunu QR ile yalnizca bir attendance kaydi olusturur.
+- Kulup yoneticisi etkinlik katilim sayilarini gorur.
+
+## Basari Olcutleri
+
+- Kulup etkinliklerinin onay sureci sistem uzerinden izlenebilir.
+- Gecersiz etkinlik durum gecisleri API servis katmaninda engellenir.
+- Yayinlanan etkinlikler merkezi takvim icin tutarli veri uretir.
+- Kayit ve attendance tekillik kurallari veritabani tarafinda korunur.
+- Kritik durum degisiklikleri audit log ile geriye donuk incelenebilir.
+
+## Varsayimlar
+
+- Tarihler veritabaninda UTC saklanir, arayuzde `Europe/Istanbul` olarak gosterilir.
+- Bir kullanici birden fazla sistem rolune sahip olabilir.
+- Kulup icindeki yetki `ClubMembership.role` uzerinden belirlenir.
+- QR tokenin yalnizca hash veya turetilmis dogrulama verisi saklanir.
+- Faz 1'de kimlik dogrulama test hesaplariyla sinirlandirilir.
+
+## Acik Sorular
+
+- Basin Yayin onayindan sonra yayinlama otomatik mi olacak, yoksa ayri bir editor aksiyonu mu gerekecek?
+- Etkinlik kapasitesi doldugunda bekleme listesi gerekecek mi?
+- Attendance icin QR kodun gecerlilik suresi ne kadar olmali?
+- Kulup yetkilileri AGU tarafindan mi atanacak, yoksa kulup adminleri yeni uye ekleyebilecek mi?
+- Bildirim kanallari hangi sirayla devreye alinacak?

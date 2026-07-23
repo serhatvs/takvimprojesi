@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoleName {
+  STUDENT
+  CLUB_MEMBER
+  CLUB_ADMIN
+  PRESS_EDITOR
+  SYSTEM_ADMIN
+}
+
+enum ClubMembershipRole {
+  MEMBER
+  ADMIN
+}
+
+enum EventStatus {
+  DRAFT
+  SUBMITTED
+  CHANGES_REQUESTED
+  REJECTED
+  APPROVED
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum EventReviewDecision {
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+model User {
+  id            String              @id @default(uuid())
+  email         String              @unique
+  displayName   String
+  studentNumber String?             @unique
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  roles         UserRole[]
+  memberships   ClubMembership[]
+  eventsCreated Event[]             @relation("EventCreatedBy")
+  reviews       EventReview[]       @relation("EventReviewedBy")
+  registrations EventRegistration[]
+  attendances   Attendance[]
+  notifications Notification[]
+  auditLogs     AuditLog[]          @relation("AuditActor")
+
+  @@index([email])
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  role      RoleName
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([role])
+}
+
+model Club {
+  id          String           @id @default(uuid())
+  name        String
+  slug        String           @unique
+  description String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  memberships ClubMembership[]
+  events      Event[]
+
+  @@index([name])
+}
+
+model ClubMembership {
+  id        String             @id @default(uuid())
+  userId    String
+  clubId    String
+  role      ClubMembershipRole @default(MEMBER)
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId])
+  @@index([clubId, role])
+  @@index([userId, role])
+}
+
+model Event {
+  id                  String              @id @default(uuid())
+  clubId              String
+  createdById         String
+  title               String
+  slug                String              @unique
+  description         String
+  location            String
+  status              EventStatus         @default(DRAFT)
+  startsAt            DateTime
+  endsAt              DateTime
+  capacity            Int?
+  registrationOpensAt DateTime?
+  registrationClosesAt DateTime?
+  publishedAt         DateTime?
+  cancelledAt         DateTime?
+  completedAt         DateTime?
+  qrTokenHash         String?             @unique
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  club                Club                @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  createdBy           User                @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  reviews             EventReview[]
+  registrations       EventRegistration[]
+  attendances         Attendance[]
+
+  @@index([clubId, status])
+  @@index([status, startsAt])
+  @@index([startsAt])
+}
+
+model EventReview {
+  id         String              @id @default(uuid())
+  eventId    String
+  reviewerId String
+  decision   EventReviewDecision
+  comment    String
+  createdAt  DateTime            @default(now())
+  event      Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reviewer   User                @relation("EventReviewedBy", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([eventId, createdAt])
+  @@index([reviewerId, createdAt])
+}
+
+model EventRegistration {
+  id           String   @id @default(uuid())
+  eventId      String
+  userId       String
+  registeredAt DateTime @default(now())
+  cancelledAt  DateTime?
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId, registeredAt])
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  checkedInAt DateTime @default(now())
+  source    String   @default("QR")
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId, checkedInAt])
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  status    NotificationStatus @default(PENDING)
+  metadata  Json?
+  createdAt DateTime           @default(now())
+  readAt    DateTime?
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  entityType String
+  entityId   String
+  action     String
+  before     Json?
+  after      Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}

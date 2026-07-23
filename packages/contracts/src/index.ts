@@ -1,0 +1,49 @@
+export const USER_ROLES = [
+  "STUDENT",
+  "CLUB_MEMBER",
+  "CLUB_ADMIN",
+  "PRESS_EDITOR",
+  "SYSTEM_ADMIN"
+] as const;
+
+export type UserRole = (typeof USER_ROLES)[number];
+
+export const EVENT_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "CHANGES_REQUESTED",
+  "REJECTED",
+  "APPROVED",
+  "PUBLISHED",
+  "CANCELLED",
+  "COMPLETED"
+] as const;
+
+export type EventStatus = (typeof EVENT_STATUSES)[number];
+
+export const EVENT_REVIEW_DECISIONS = [
+  "APPROVED",
+  "REJECTED",
+  "CHANGES_REQUESTED"
+] as const;
+
+export type EventReviewDecision = (typeof EVENT_REVIEW_DECISIONS)[number];
+
+export interface HealthResponse {
+  status: "ok";
+  service: "agu-api";
+  timeZone: "Europe/Istanbul";
+  checkedAt: string;
+}
+
+export interface EventSummary {
+  id: string;
+  title: string;
+  status: EventStatus;
+  startsAt: string;
+  endsAt: string;
+  clubName: string;
+}
+
+export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
+export type { EventTransition } from "./event-lifecycle";
