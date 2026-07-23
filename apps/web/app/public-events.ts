@@ -68,7 +68,7 @@ export type EventCardViewModel = {
   location: string;
   description: string;
   capacityLabel: string | null;
-  statusLabel: "Yayinda";
+  statusLabel: "Yayında";
 };
 
 export type EventDetailViewModel = {
@@ -81,7 +81,7 @@ export type EventDetailViewModel = {
   description: string;
   capacityLabel: string | null;
   publishedAtLabel: string | null;
-  statusLabel: "Yayinda";
+  statusLabel: "Yayında";
 };
 
 const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
@@ -272,7 +272,7 @@ export function toEventCardViewModel(event: PublicEventListItem): EventCardViewM
     location: event.location,
     description: event.description,
     capacityLabel: event.capacity === null ? null : `${event.capacity} kisilik kapasite`,
-    statusLabel: "Yayinda"
+    statusLabel: "Yayında"
   };
 }
 
@@ -287,7 +287,7 @@ export function toEventDetailViewModel(event: PublicEventDetailResponse): EventD
     description: event.description,
     capacityLabel: event.capacity === null ? null : `${event.capacity} kisilik kapasite`,
     publishedAtLabel: event.publishedAt ? formatEventDateTime(event.publishedAt) : null,
-    statusLabel: "Yayinda"
+    statusLabel: "Yayında"
   };
 }
 

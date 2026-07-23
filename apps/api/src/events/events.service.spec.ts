@@ -75,6 +75,14 @@ type CreateServiceOptions = {
   publicItems?: PublicEventRecord[];
   publicDetail?: PublicEventRecord | null;
   publicCount?: number;
+  registrationEvent?: {
+    startsAt?: Date;
+    capacity?: number | null;
+  } | null;
+  existingRegistration?: boolean;
+  registrationCount?: number;
+  registrationCounts?: number[];
+  registrationCreateFailsUnique?: boolean;
 };
 
 function createService({
@@ -90,7 +98,15 @@ function createService({
   reviewFails = false,
   publicItems = [],
   publicDetail = null,
-  publicCount = publicItems.length
+  publicCount = publicItems.length,
+  registrationEvent = {
+    startsAt: new Date("2026-08-10T11:00:00.000Z"),
+    capacity: 100
+  },
+  existingRegistration = false,
+  registrationCount = 0,
+  registrationCounts,
+  registrationCreateFailsUnique = false
 }: CreateServiceOptions = {}) {
   const createdEvent = {
     id: "event-id",
@@ -113,6 +129,15 @@ function createService({
     createdAt: new Date("2026-07-23T12:00:00.000Z"),
     updatedAt: new Date("2026-07-23T12:00:00.000Z")
   };
+  const registrationCountMock = vi.fn();
+  if (registrationCounts) {
+    for (const count of registrationCounts) {
+      registrationCountMock.mockResolvedValueOnce(count);
+    }
+    registrationCountMock.mockResolvedValue(registrationCount);
+  } else {
+    registrationCountMock.mockResolvedValue(registrationCount);
+  }
 
   const prisma = {
     club: {
@@ -130,14 +155,39 @@ function createService({
       count: vi.fn().mockResolvedValue(publicCount),
       create: vi.fn().mockResolvedValue(createdEvent)
     },
-    $transaction: vi.fn(async (callback) =>
-      callback({
+    $transaction: vi.fn(async (callback) => {
+      const transaction = {
+        $queryRaw: vi.fn().mockResolvedValue([{ id: "event-id" }]),
         event: {
           updateMany: vi.fn().mockResolvedValue({ count: updateCount }),
+          findFirst: vi.fn().mockResolvedValue(
+            registrationEvent
+              ? {
+                  id: "event-id",
+                  startsAt: registrationEvent.startsAt ?? new Date("2026-08-10T11:00:00.000Z"),
+                  capacity:
+                    registrationEvent.capacity === undefined ? 100 : registrationEvent.capacity
+                }
+              : null
+          ),
           findUniqueOrThrow: vi.fn().mockResolvedValue({
             ...createdEvent,
             status: updatedStatus
           })
+        },
+        eventRegistration: {
+          findUnique: vi.fn().mockResolvedValue(
+            existingRegistration ? { id: "registration-id" } : null
+          ),
+          count: registrationCountMock,
+          create: registrationCreateFailsUnique
+            ? vi.fn().mockRejectedValue({ code: "P2002" })
+            : vi.fn().mockImplementation(({ data }) => ({
+                id: "registration-id",
+                eventId: data.eventId,
+                userId: data.userId,
+                registeredAt: new Date("2026-07-23T12:00:00.000Z")
+              }))
         },
         eventReview: {
           create: reviewFails
@@ -149,8 +199,10 @@ function createService({
             ? vi.fn().mockRejectedValue(new Error("audit failed"))
             : vi.fn().mockResolvedValue({ id: "audit-id" })
         }
-      })
-    )
+      };
+
+      return callback(transaction);
+    })
   };
   const authorization = {
     canCreateEventForClub: vi.fn().mockResolvedValue(canCreate),
@@ -366,6 +418,122 @@ describe("EventsService", () => {
     await expect(
       service.getPublicEvent("00000000-0000-4000-8000-000000000000")
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("registers a student for a future published event", async () => {
+    const { service, prisma } = createService();
+
+    const registration = await service.registerForEvent(
+      student,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(registration.eventId).toBe("11111111-1111-4111-8111-111111111111");
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+  });
+
+  it("rejects event registration for users without the student role", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.registerForEvent(pressEditor, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("returns not found when registering for a non-public event", async () => {
+    const { service } = createService({ registrationEvent: null });
+
+    await expect(
+      service.registerForEvent(student, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("rejects registration for an already started event", async () => {
+    const { service } = createService({
+      registrationEvent: {
+        startsAt: new Date("2026-07-01T11:00:00.000Z"),
+        capacity: 100
+      }
+    });
+
+    await expect(
+      service.registerForEvent(student, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("rejects duplicate registration", async () => {
+    const { service } = createService({ existingRegistration: true });
+
+    await expect(
+      service.registerForEvent(student, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("maps unique constraint failures to duplicate registration conflict", async () => {
+    const { service } = createService({ registrationCreateFailsUnique: true });
+
+    await expect(
+      service.registerForEvent(student, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("rejects registration when event capacity is full", async () => {
+    const { service } = createService({
+      registrationEvent: {
+        startsAt: new Date("2026-08-10T11:00:00.000Z"),
+        capacity: 1
+      },
+      registrationCount: 1
+    });
+
+    await expect(
+      service.registerForEvent(student, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("allows unlimited registration when capacity is null", async () => {
+    const { service } = createService({
+      registrationEvent: {
+        startsAt: new Date("2026-08-10T11:00:00.000Z"),
+        capacity: null
+      }
+    });
+
+    await expect(
+      service.registerForEvent(student, "11111111-1111-4111-8111-111111111111")
+    ).resolves.toMatchObject({
+      eventId: "11111111-1111-4111-8111-111111111111",
+      userId: student.userId
+    });
+  });
+
+  it("uses the authenticated principal user id for registration", async () => {
+    const { service } = createService();
+
+    const registration = await service.registerForEvent(
+      student,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(registration.userId).toBe(student.userId);
+  });
+
+  it("lets only one racing final-capacity registration succeed", async () => {
+    const { service } = createService({
+      registrationEvent: {
+        startsAt: new Date("2026-08-10T11:00:00.000Z"),
+        capacity: 1
+      },
+      registrationCounts: [0, 1]
+    });
+
+    const results = await Promise.allSettled([
+      service.registerForEvent(student, "11111111-1111-4111-8111-111111111111"),
+      service.registerForEvent(clubMember, "11111111-1111-4111-8111-111111111111")
+    ]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
   });
 
   it("creates a draft event for an authorized club admin", async () => {

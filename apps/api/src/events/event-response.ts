@@ -1,6 +1,7 @@
-import type { Event } from "@prisma/client";
+import type { Event, EventRegistration } from "@prisma/client";
 import type {
   DraftEventResponse,
+  EventRegistrationResponse,
   EventResponse,
   PublicEventDetailResponse,
   PublicEventListItem
@@ -65,4 +66,15 @@ export function toPublicEventDetailResponse(
   event: PublicEventRecord
 ): PublicEventDetailResponse {
   return toPublicEventListItem(event);
+}
+
+export function toEventRegistrationResponse(
+  registration: EventRegistration
+): EventRegistrationResponse {
+  return {
+    id: registration.id,
+    eventId: registration.eventId,
+    userId: registration.userId,
+    registeredAt: registration.registeredAt.toISOString()
+  };
 }

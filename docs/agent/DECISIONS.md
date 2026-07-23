@@ -56,3 +56,5 @@
   - Gerekce: Yayinlanan kampus etkinlikleri ana sayfada gecikmeden gorunmelidir; 12 kart mobil/orta/genis ekran gridleri icin dengeli bir sayfa boyutudur.
 - Web public etkinlik detay sayfasi listeyle tutarli olarak `cache: "no-store"` kullanir ve metadata/page veri tekrarini azaltmak icin request yasam dongusunde `cache()` ile sarilir.
   - Gerekce: Detay sayfasi yayin durumu ve 404 gorunurluk kurallarini geciktirmeden yansitmalidir; metadata uretimi ayni public veri kaynagini kullanirken gereksiz tekrar cagrilari azaltir.
+- Event registration kapasite kontrolu PostgreSQL row lock ile ayni Prisma transaction icinde yapilir.
+  - Gerekce: Son kontenjan icin eszamanli isteklerde once kayit sayip sonra bagimsiz create yapmak kapasite asimina yol acabilir; event satirini `FOR UPDATE` kilitlemek kapasite sayimi ve `EventRegistration` create adimini siralarken mevcut unique constraint duplicate kayit icin son savunma olarak kalir.

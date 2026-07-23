@@ -21,7 +21,8 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Onaylanan etkinliklerin yayinlanmasi ve yayinlanmis etkinliklerin public liste/detay API'leriyle kampus takvimine hazir hale gelmesi.
 - Ana sayfada yayinlanmis ve yaklasan etkinliklerin arama, tarih filtresi ve sayfalama ile listelenmesi.
 - Yayinlanmis etkinlikler icin public detay sayfasinda etkinlik bilgilerini goruntuleme.
-- Ogrenci kaydi ve tekil attendance kaydi icin veri modeli.
+- Ogrencinin yayinlanmis ve henuz baslamamis etkinlige tekil kayit olmasi.
+- Tekil attendance kaydi icin veri modeli.
 - QR token ham degerini saklamadan katilim dogrulama mimarisi.
 - Audit log ve bildirim adaptoru icin baslangic sinirlari.
 
@@ -40,7 +41,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Basin Yayin editoru aciklama ekleyerek onaylar, reddeder veya degisiklik ister.
 - Herkes yayinlanmis gelecek etkinlikleri ana sayfadaki kampus takviminde arar, tarih araligina gore filtreler ve listeler.
 - Herkes yayinlanmis bir etkinligin public detay sayfasini acar ve filtreleri korunmus sekilde listeye donebilir.
-- Ogrenci yayinlanmis etkinlige bir kez kayit olur.
+- Ogrenci yayinlanmis ve henuz baslamamis etkinlige kapasite uygunsa bir kez kayit olur.
 - Ogrenci etkinlik gunu QR ile yalnizca bir attendance kaydi olusturur.
 - Kulup yoneticisi etkinlik katilim sayilarini gorur.
 
@@ -49,7 +50,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Kulup etkinliklerinin onay sureci sistem uzerinden izlenebilir.
 - Gecersiz etkinlik durum gecisleri API servis katmaninda engellenir.
 - Yayinlanan etkinlikler merkezi takvim icin public liste ve detay verisi uretir, ana sayfada kartlar halinde gorunur ve detay sayfasinda incelenir.
-- Kayit ve attendance tekillik kurallari veritabani tarafinda korunur.
+- Kayit ve attendance tekillik kurallari veritabani tarafinda korunur; etkinlik kapasitesi eszamanli kayitlarda asilmaz.
 - Kritik durum degisiklikleri audit log ile geriye donuk incelenebilir.
 
 ## Varsayimlar

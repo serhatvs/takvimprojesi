@@ -8,6 +8,7 @@ import type { ReviewEventDto } from "./dto/review-event.dto";
 import {
   toDraftEventResponse,
   toEventResponse,
+  toEventRegistrationResponse,
   toPublicEventDetailResponse,
   toPublicEventListItem
 } from "./event-response";
@@ -104,5 +105,12 @@ export class EventsController {
   async publishEvent(@CurrentUser() principal: Principal, @Param("eventId") eventId: string) {
     const event = await this.eventsService.publishEvent(principal, eventId);
     return toEventResponse(event);
+  }
+
+  @Post(":eventId/register")
+  @UseGuards(AuthenticationGuard)
+  async registerForEvent(@CurrentUser() principal: Principal, @Param("eventId") eventId: string) {
+    const registration = await this.eventsService.registerForEvent(principal, eventId);
+    return toEventRegistrationResponse(registration);
   }
 }

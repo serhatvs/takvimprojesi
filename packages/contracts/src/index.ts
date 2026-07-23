@@ -153,5 +153,12 @@ export interface PublicEventListResponse {
   pagination: PaginationResponse;
 }
 
+export interface EventRegistrationResponse {
+  id: string;
+  eventId: string;
+  userId: string;
+  registeredAt: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

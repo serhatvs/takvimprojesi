@@ -340,6 +340,77 @@ export class EventsService {
     });
   }
 
+  async registerForEvent(principal: Principal, eventId: string) {
+    this.assertValidEventId(eventId);
+
+    if (!principal.globalRoles.includes("STUDENT")) {
+      throw new ForbiddenException("Only students can register for events.");
+    }
+
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        await transaction.$queryRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
+
+        const event = await transaction.event.findFirst({
+          where: {
+            id: eventId,
+            status: "PUBLISHED"
+          },
+          select: {
+            id: true,
+            startsAt: true,
+            capacity: true
+          }
+        });
+
+        if (!event) {
+          throw new NotFoundException("Event was not found.");
+        }
+
+        if (event.startsAt <= new Date()) {
+          throw new ConflictException("Registration is closed for started events.");
+        }
+
+        const existingRegistration = await transaction.eventRegistration.findUnique({
+          where: {
+            eventId_userId: {
+              eventId,
+              userId: principal.userId
+            }
+          },
+          select: { id: true }
+        });
+
+        if (existingRegistration) {
+          throw new ConflictException("User is already registered for this event.");
+        }
+
+        if (event.capacity !== null) {
+          const registrationCount = await transaction.eventRegistration.count({
+            where: { eventId }
+          });
+
+          if (registrationCount >= event.capacity) {
+            throw new ConflictException("Event capacity is full.");
+          }
+        }
+
+        return transaction.eventRegistration.create({
+          data: {
+            eventId,
+            userId: principal.userId
+          }
+        });
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw new ConflictException("User is already registered for this event.");
+      }
+
+      throw error;
+    }
+  }
+
   private validateCreateDraftEvent(dto: CreateDraftEventDto): ValidCreateDraftEventInput {
     const clubId = this.requiredString(dto.clubId, "clubId");
     const title = this.requiredString(dto.title, "title");
@@ -536,5 +607,14 @@ export class EventsService {
       case "APPROVED":
         return "EVENT_APPROVED";
     }
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2002"
+    );
   }
 }

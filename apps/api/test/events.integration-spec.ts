@@ -36,6 +36,7 @@ describe("POST /events", () => {
   let pressCookie: string;
   let otherClubAdminCookie: string;
   let clubAdminId: string;
+  let studentId: string;
   let pressEditorId: string;
 
   beforeAll(async () => {
@@ -129,6 +130,10 @@ describe("POST /events", () => {
       .send({ email: "student.dev@agu.edu.tr" })
       .expect(201);
     studentCookie = getSessionCookie(studentLogin.headers["set-cookie"]);
+    const studentUser = await prisma.user.findUniqueOrThrow({
+      where: { email: "student.dev@agu.edu.tr" }
+    });
+    studentId = studentUser.id;
 
     const clubMemberLogin = await request(app.getHttpServer())
       .post("/auth/dev-login")
@@ -182,7 +187,8 @@ describe("POST /events", () => {
             { slug: { startsWith: "integration-submit-event" } },
             { slug: { startsWith: "integration-review-event" } },
             { slug: { startsWith: "integration-publish-event" } },
-            { slug: { startsWith: "integration-public-event" } }
+            { slug: { startsWith: "integration-public-event" } },
+            { slug: { startsWith: "integration-registration-event" } }
           ]
         },
         select: { id: true }
@@ -983,6 +989,149 @@ describe("POST /events", () => {
     expect(auditCount).toBe(0);
   });
 
+  it("returns 401 when registering without authentication", async () => {
+    const event = await createPublicEvent("integration-registration-event-unauth", {
+      title: "Registration Unauth Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer()).post(`/events/${event.id}/register`).expect(401);
+  });
+
+  it("registers a student for a future published event", async () => {
+    const event = await createPublicEvent("integration-registration-event-success", {
+      title: "Registration Success Event",
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/events/${event.id}/register`)
+      .set("Cookie", studentCookie)
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      eventId: event.id,
+      userId: studentId,
+      registeredAt: expect.any(String)
+    });
+
+    const registration = await prisma.eventRegistration.findUniqueOrThrow({
+      where: {
+        eventId_userId: {
+          eventId: event.id,
+          userId: studentId
+        }
+      }
+    });
+    expect(registration.eventId).toBe(event.id);
+    expect(registration.userId).toBe(studentId);
+  });
+
+  it("returns 409 for a duplicate registration", async () => {
+    const event = await createPublicEvent("integration-registration-event-duplicate", {
+      title: "Registration Duplicate Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/register`)
+      .set("Cookie", studentCookie)
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/register`)
+      .set("Cookie", studentCookie)
+      .expect(409);
+  });
+
+  it("returns 403 for a user without the student role", async () => {
+    const event = await createPublicEvent("integration-registration-event-non-student", {
+      title: "Registration Non Student Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/register`)
+      .set("Cookie", pressCookie)
+      .expect(403);
+  });
+
+  it("returns 404 for a non-public event registration", async () => {
+    const event = await createPublicEvent("integration-registration-event-draft", {
+      title: "Registration Hidden Event",
+      status: "DRAFT"
+    });
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/register`)
+      .set("Cookie", studentCookie)
+      .expect(404);
+  });
+
+  it("returns 404 for registering an unknown event", async () => {
+    await request(app.getHttpServer())
+      .post("/events/00000000-0000-4000-8000-000000000000/register")
+      .set("Cookie", studentCookie)
+      .expect(404);
+  });
+
+  it("returns 400 for an invalid registration event id", async () => {
+    await request(app.getHttpServer())
+      .post("/events/not-a-valid-id/register")
+      .set("Cookie", studentCookie)
+      .expect(400);
+  });
+
+  it("returns 409 for an event that has already started", async () => {
+    const event = await createPublicEvent("integration-registration-event-started", {
+      title: "Registration Started Event",
+      startsAt: new Date("2026-07-01T11:00:00.000Z"),
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/register`)
+      .set("Cookie", studentCookie)
+      .expect(409);
+  });
+
+  it("returns 409 when event capacity is full", async () => {
+    const event = await createPublicEvent("integration-registration-event-full", {
+      title: "Registration Full Event",
+      status: "PUBLISHED",
+      capacity: 1
+    });
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/register`)
+      .set("Cookie", clubMemberCookie)
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/register`)
+      .set("Cookie", studentCookie)
+      .expect(409);
+  });
+
+  it("does not exceed capacity for concurrent final-seat registrations", async () => {
+    const event = await createPublicEvent("integration-registration-event-concurrent", {
+      title: "Registration Concurrent Event",
+      status: "PUBLISHED",
+      capacity: 1
+    });
+
+    const responses = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/events/${event.id}/register`)
+        .set("Cookie", studentCookie),
+      request(app.getHttpServer())
+        .post(`/events/${event.id}/register`)
+        .set("Cookie", clubMemberCookie)
+    ]);
+
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses).toEqual([201, 409]);
+    expect(await prisma.eventRegistration.count({ where: { eventId: event.id } })).toBe(1);
+  });
+
   it("keeps existing submit, review, and publish routes working alongside public detail", async () => {
     const draft = await createDraftEvent("integration-public-event-route-submit");
     await request(app.getHttpServer())
@@ -1061,6 +1210,7 @@ describe("POST /events", () => {
       description?: string;
       startsAt?: Date;
       clubId?: string;
+      capacity?: number | null;
       status: "DRAFT" | "SUBMITTED" | "CHANGES_REQUESTED" | "REJECTED" | "APPROVED" | "PUBLISHED" | "CANCELLED" | "COMPLETED";
     }
   ) {
@@ -1075,7 +1225,7 @@ describe("POST /events", () => {
         startsAt,
         endsAt: new Date(startsAt.getTime() + 2 * 60 * 60 * 1000),
         location: "AGU Buyuk Amfi",
-        capacity: 100,
+        capacity: input.capacity === undefined ? 100 : input.capacity,
         status: input.status,
         publishedAt: input.status === "PUBLISHED" ? new Date("2026-07-23T12:00:00.000Z") : null
       }

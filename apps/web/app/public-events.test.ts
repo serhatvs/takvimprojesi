@@ -45,7 +45,7 @@ describe("public event helpers", () => {
       clubName: "AGU Yazilim Kulubu",
       location: "AGU Buyuk Amfi",
       capacityLabel: "100 kisilik kapasite",
-      statusLabel: "Yayinda"
+      statusLabel: "Yayında"
     });
   });
 
@@ -177,7 +177,7 @@ describe("public event helpers", () => {
       location: "AGU Buyuk Amfi",
       capacityLabel: "100 kisilik kapasite",
       publishedAtLabel: "23 Temmuz 2026 Perşembe 15:00",
-      statusLabel: "Yayinda"
+      statusLabel: "Yayında"
     });
   });
 

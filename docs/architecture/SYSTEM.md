@@ -44,6 +44,10 @@ Yayinlama islemi yalnizca `PRESS_EDITOR` veya `SYSTEM_ADMIN` tarafindan `APPROVE
 
 Public listeleme varsayilan olarak mevcut zamandan sonraki `PUBLISHED` etkinlikleri `startsAt ASC, id ASC` siralar. `from` ve `to` filtreleri `startsAt` uzerinden dahilidir; `clubId`, trim edilmis case-insensitive `q`, `page` ve `pageSize` desteklenir. Varsayilan `page=1`, `pageSize=20`, maksimum `pageSize=100` olarak uygulanir.
 
+Ogrenci etkinlik kaydi `POST /events/:eventId/register` ile yapilir ve authentication gerektirir. Principal'in global rolleri arasinda `STUDENT` yoksa `403 Forbidden` doner; `PRESS_EDITOR`, `CLUB_ADMIN` veya `SYSTEM_ADMIN` yalniz bu rolleri nedeniyle otomatik kayit olamaz. Kullanicinin `userId` degeri istemciden alinmaz, authentication principal'indan gelir.
+
+Kayit yalnizca `PUBLISHED` ve henuz baslamamis etkinlikler icin aciktir. Public olmayan veya bilinmeyen event ID'leri `404 Not Found` ile gizlenir; baslamis etkinlik, duplicate kayit veya dolu kapasite `409 Conflict` doner. Kapasite kontrolu PostgreSQL transaction icinde event satirina `FOR UPDATE` lock alinarak yapilir; kayit sayisi ve `EventRegistration` create ayni transaction icindedir. `@@unique([eventId, userId])` duplicate kayit icin son savunma katmani olarak kalir ve Prisma unique constraint hatalari kontrollu `409` cevabina cevrilir.
+
 ## QR Katilim Yaklasimi
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.
@@ -67,6 +71,8 @@ Publish islemi icin audit action `EVENT_PUBLISHED` olarak tutulur. Audit kaydi o
 Yalnizca gerekli kullanici bilgileri saklanir. Gizli degerler repoya yazilmaz; `.env.example` yalnizca ornek gelistirme degerleri tasir. Session secret `.env` uzerinden gelir. Session cookie `HttpOnly`, `SameSite=Lax` ve production ortaminda `Secure` olarak yazilir. QR token ham degeri kalici saklama zorunlulugu yoktur. Yetki kontrolleri API tarafinda uygulanir.
 
 Public event response'lari `createdById`, kullanici e-postasi, uyelik bilgisi, review, audit, QR token hash ve internal metadata dondurmez; yalniz takvim ve detay gorunumu icin gerekli event ve kulup alanlarini secer.
+
+Event registration response'u yalniz `id`, `eventId`, `userId` ve `registeredAt` alanlarini dondurur; istemciden gonderilen kullanici, rol veya token bilgisi dikkate alinmaz.
 
 Web public etkinlik kartlari da yalniz public response alanlarini render eder: baslik, kulup adi, tarih/saat, konum, aciklama, kapasite ve yayin durumu. Development auth paneli yalniz development ortaminda gorunur ve public liste fetch'inden ayri tutulur.
 
