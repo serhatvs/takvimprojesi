@@ -36,7 +36,7 @@
 - `docs/product/PRD.md`: Urun kapsami ve varsayimlar.
 - `docs/architecture/SYSTEM.md`: Sistem sinirlari ve teknik yaklasim.
 - `docs/domain/EVENT_LIFECYCLE.md`: Etkinlik durumlari ve izinli gecisler.
-- `docs/agent/*`: Agent calismasi, test matrisi, kararlar ve current state.
+- `docs/agent/*`: Agent calismasi, test matrisi, kararlar, current state ve yeni oturumlar icin `HANDOFF.md` devir ozeti.
 
 ## Repo-local Skills
 

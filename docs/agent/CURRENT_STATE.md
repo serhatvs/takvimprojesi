@@ -2,7 +2,7 @@
 
 ## Mevcut Asama
 
-Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, taslak etkinlik olusturma API'si, taslagi Basin Yayin onayina gonderme API'si, Basin Yayin inceleme karar API'leri, onaylanmis etkinligi yayinlama API'si, public yayinlanmis etkinlik kesif API'leri, ana sayfa public etkinlik listeleme ekrani, public etkinlik detay sayfasi, ogrenci etkinlik kayit API'si, detay sayfasi kayit kontrolu, QR attendance backend temeli, yetkili yoneticiler icin detay sayfasi QR yoklama paneli, ogrenci `/check-in` QR yoklama ekrani, kulup etkinlik katilim ozeti API'si ve detay sayfasi katilim ozeti paneli tamamlandi.
+Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi tamamlandi: kulup etkinlik olusturur, onaya gonderir, Basin Yayin karar verir, etkinlik yayinlanir, ogrenci kayit olur, QR ile yoklama verir ve kulup katilim ozetini gorur. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, event lifecycle API'leri, public liste/detay, registration, QR attendance, ogrenci `/check-in` ekrani, attendance summary API'si ve detay sayfasi katilim ozeti paneli tamamlandi. Son urun commit'i `ecc049a feat: add attendance summary panel`; yeni agent icin ana devir belgesi `docs/agent/HANDOFF.md`.
 
 ## Tamamlanan Isler
 
@@ -112,6 +112,8 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 ## Bir Sonraki Onerilen Gorev
 
 Bir sonraki urun dikey ozelligi olarak kulup icin ayrintili katilimci listesi/CSV dis aktarim siniri veya public etkinlik yonetim ekranlari gelistirilmeli.
+
+Yeni agent once `AGENTS.md`, `docs/agent/HANDOFF.md` ve bu dosyayi okumali. Handoff belgesi Faz 1 kapsam, endpointler, veri modeli, yetki kurallari, test durumu, ortam kisitlari ve sonraki gorev siralamasini onceki sohbetlere ihtiyac birakmayacak sekilde ozetler.
 
 ## Son Dogrulama Sonuclari
 
