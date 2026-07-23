@@ -2,7 +2,7 @@
 
 ## Mevcut Asama
 
-Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, taslak etkinlik olusturma API'si, taslagi Basin Yayin onayina gonderme API'si, Basin Yayin inceleme karar API'leri, onaylanmis etkinligi yayinlama API'si, public yayinlanmis etkinlik kesif API'leri, ana sayfa public etkinlik listeleme ekrani, public etkinlik detay sayfasi, ogrenci etkinlik kayit API'si, detay sayfasi kayit kontrolu, QR attendance backend temeli ve yetkili yoneticiler icin detay sayfasi QR yoklama paneli tamamlandi.
+Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, taslak etkinlik olusturma API'si, taslagi Basin Yayin onayina gonderme API'si, Basin Yayin inceleme karar API'leri, onaylanmis etkinligi yayinlama API'si, public yayinlanmis etkinlik kesif API'leri, ana sayfa public etkinlik listeleme ekrani, public etkinlik detay sayfasi, ogrenci etkinlik kayit API'si, detay sayfasi kayit kontrolu, QR attendance backend temeli, yetkili yoneticiler icin detay sayfasi QR yoklama paneli ve ogrenci `/check-in` QR yoklama ekrani tamamlandi.
 
 ## Tamamlanan Isler
 
@@ -54,6 +54,9 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 - Public detay durum etiketi Turkce karakterle `Yayında` olarak duzeltildi.
 - Web public detay sayfasina yalniz etkinligin kulubundeki aktif `ADMIN` veya `SYSTEM_ADMIN` icin gorunen `Yoklama Yönetimi` QR paneli eklendi.
 - QR paneli `POST /events/:eventId/attendance-token` endpointini credential ile cagirir, tokeni yalniz client state'te tutar, surumlenmis JSON QR payload'i uretir, kalan sureyi canli gosterir ve sure dolunca QR'i gizler.
+- Web `/check-in` route'u eklendi; sayfa `/auth/me` ile STUDENT rolunu kontrol eder, kamera scanner'i yalniz kullanici aksiyonuyla client tarafinda yukler ve manuel QR payload yedegi sunar.
+- Check-in parser'i surum `1`, bos olmayan `eventId` ve bos olmayan `token` ister; gecerli payload `POST /events/:eventId/check-in` endpointine credential ve `cache: no-store` ile gonderilir.
+- Kayitli ogrenci durumunda detay sayfasindan `/check-in` icin `QR ile Yoklama Ver` baglantisi gosterilir.
 
 ## Calisan Komutlar
 
@@ -82,13 +85,15 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 - Public web detail registration smoke: student dev-login sonrasi detail sayfasinda `Etkinliğe Katıl`, POST sonrasi `Bu etkinliğe kayıtlısınız`, yeniden acilista kayitli durum ve press kullanicisinda butonsuz yetki mesaji dogrulandi
 - QR attendance smoke: gecici published event ve student registration ile club admin token 200, student check-in 201, ikinci check-in 409, token rotation sonrasi eski token 400, attendance count 1 ve gecici kayit temizligi dogrulandi
 - Public web QR attendance panel smoke: gecici published event detay HTML'i 200, club admin ile iki token uretimi 200, token refresh sonrasi token degisti, eski token check-in 400, yeni token check-in 201, attendance count 1 ve HTML icinde ham token bulunmadigi dogrulandi; client panel gorunurluk/state gecisleri unit helper testleriyle dogrulandi
+- Student QR check-in smoke: `/check-in` HTTP 200, loading shell render, gecici published event+registration+attendance token ile manuel payload seklinde check-in API 201, ikinci check-in 409, PRESS_EDITOR API 403, HTML/API text icinde ham token bulunmadigi ve gecici kayit temizligi dogrulandi; gercek kamera otomasyonu yoktur
 
 ## Bilinen Eksikler
 
 - Gercek AGU SSO entegrasyonu yok; gelistirme auth siniri gelecekte SSO adapter'i ile degistirilmek uzere kuruldu.
 - Uygulama endpointleri olarak health, auth, taslak event olusturma, taslagi onaya gonderme, Basin Yayin karar endpointleri, yayinlama endpointi, public yayinlanmis event liste/detay endpointleri, ogrenci event registration endpointi, current-user registration status endpointi, attendance token ve check-in endpointleri vardir; ana sayfada public liste ekrani ve `/events/[eventId]` public detay sayfasi/kayit paneli vardir; yonetimsel listeleme, guncelleme ve silme endpointleri yoktur.
 - Bildirim adapterleri placeholder mimari sinir olarak duruyor.
-- Kamera tarayici, QR indirme/paylasma, dashboard, katilimci listesi ve manuel check-in henuz uygulanmadi.
+- QR indirme/paylasma, attendance dashboard'u, katilimci listesi ve manuel personel check-in henuz uygulanmadi.
+- Gercek cihaz kamera taramasi browser automation veya fiziksel cihazla dogrulanmadi; scanner lifecycle ve parser davranisi hafif unit testlerle, check-in HTTP davranisi smoke testle dogrulandi.
 - Sistem Node'u hala `/usr/bin/node` uzerinden v26.4.0; proje dogrulamasi nvm altindaki Node v24.18.0 ile yapildi.
 - Eski yarim `node_modules*` kalintilari silinmeden repo disina tasindi.
 - Next/Turbopack build once `.next` artefactinde I/O beklemesine girdi; `.next` repo disina tasindi ve webpack build kullanildi.
@@ -98,7 +103,7 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 
 ## Bir Sonraki Onerilen Gorev
 
-Bir sonraki urun dikey ozelligi olarak QR gorseli uretme ve kulup tarafinda tarama/yoklama deneyimi gelistirilmeli.
+Bir sonraki urun dikey ozelligi olarak kulup attendance sayaci/listeleme veya yoklama dashboard'u gelistirilmeli.
 
 ## Son Dogrulama Sonuclari
 
@@ -111,8 +116,8 @@ Bir sonraki urun dikey ozelligi olarak QR gorseli uretme ve kulup tarafinda tara
 - Seed: iki calisma da gecti; DB sayimlari `users=5`, `user_roles=8`, `clubs=1`, `draft_events=1`, `published_events=1`.
 - Lint: gecti, 5 package scope, 8 task.
 - Typecheck: gecti, 5 package scope, 8 task.
-- Unit tests: gecti; API 92 test, contracts 2 test, web 39 test. Config/ui test dosyasi olmadigi icin acik `--passWithNoTests`.
+- Unit tests: gecti; API 92 test, contracts 2 test, web 55 test. Config/ui test dosyasi olmadigi icin acik `--passWithNoTests`.
 - Integration tests: gecti; API 82 integration test. Diger paketlerde integration dosyasi olmadigi icin acik `--passWithNoTests`.
 - Build: gecti; `@agu/contracts`, `@agu/config`, `@agu/ui`, `@agu/api` ve `@agu/web` paketleri Node 24 altinda tekil build komutlariyla dogrulandi; web `next build --webpack`.
 - API smoke: gecti, `/health` HTTP 200, auth akisi `dev-login -> me -> logout -> me 401`, event create akisi club admin ile 201 `DRAFT` ve student ile 403, submit akisi club admin ile 200 `SUBMITTED`, ikinci submit 409, student submit 403 ve audit count 1, review akisi PRESS_EDITOR ile uc karar 200, ikinci karar 409, club admin 403, review/audit kayitlari dogrulandi, publish akisi PRESS_EDITOR ile 200 `PUBLISHED`, ikinci publish 409, club admin 403, `publishedAt` ve audit kaydi dogrulandi, public liste/detay akisi authentication olmadan 200/404 davranislariyla dogrulandi, registration akisi student ilk kayit 201, duplicate 409, kapasite dolu 409, status endpoint false/true ve DB count 1 olarak dogrulandi, QR attendance akisi token 200, check-in 201, duplicate 409, rotated old token 400 ve attendance count 1 olarak dogrulandi.
-- Web smoke: gecti; API acikken health sonucu, gelistirme auth kontrolu, detail registration paneli render/kayit akisi ve QR panel icin HTTP/token rotation smoke dogrulandi. Gercek browser automation yok; QR panel client state ve rol gorunurlugu mevcut hafif Vitest helper testleriyle dogrulandi.
+- Web smoke: gecti; API acikken health sonucu, gelistirme auth kontrolu, detail registration paneli render/kayit akisi, QR panel HTTP/token rotation smoke ve `/check-in` HTTP/API manuel payload smoke dogrulandi. Gercek browser automation yok; QR panel ve student scanner client state/rol/parser davranislari mevcut hafif Vitest helper testleriyle dogrulandi.

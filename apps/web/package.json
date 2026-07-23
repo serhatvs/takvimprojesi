@@ -15,6 +15,7 @@
     "@agu/config": "workspace:*",
     "@agu/contracts": "workspace:*",
     "@agu/ui": "workspace:*",
+    "html5-qrcode": "^2.3.8",
     "next": "^16.2.11",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",

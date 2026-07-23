@@ -18,6 +18,7 @@ export type EventRegistrationState =
 export type EventRegistrationView = {
   message: string;
   showJoinButton: boolean;
+  showCheckInLink: boolean;
   buttonDisabled: boolean;
   registeredAtLabel: string | null;
   tone: "success" | "warning";
@@ -72,6 +73,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       return {
         message: "Oturum durumu kontrol ediliyor.",
         showJoinButton: false,
+        showCheckInLink: false,
         buttonDisabled: true,
         registeredAtLabel: null,
         tone: "warning"
@@ -80,6 +82,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       return {
         message: "Katılmak için öğrenci hesabıyla giriş yapmalısınız.",
         showJoinButton: false,
+        showCheckInLink: false,
         buttonDisabled: false,
         registeredAtLabel: null,
         tone: "warning"
@@ -88,6 +91,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       return {
         message: "Bu etkinliğe kayıt olmak için öğrenci rolü gerekir.",
         showJoinButton: false,
+        showCheckInLink: false,
         buttonDisabled: false,
         registeredAtLabel: null,
         tone: "warning"
@@ -96,6 +100,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       return {
         message: "Kayıt durumunuz kontrol ediliyor.",
         showJoinButton: false,
+        showCheckInLink: false,
         buttonDisabled: true,
         registeredAtLabel: null,
         tone: "warning"
@@ -104,6 +109,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       return {
         message: "Bu etkinliğe öğrenci hesabınızla kayıt olabilirsiniz.",
         showJoinButton: true,
+        showCheckInLink: false,
         buttonDisabled: false,
         registeredAtLabel: null,
         tone: "warning"
@@ -112,6 +118,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       return {
         message: "Kayıt isteğiniz gönderiliyor.",
         showJoinButton: true,
+        showCheckInLink: false,
         buttonDisabled: true,
         registeredAtLabel: null,
         tone: "warning"
@@ -120,6 +127,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       return {
         message: "Bu etkinliğe kayıtlısınız.",
         showJoinButton: false,
+        showCheckInLink: true,
         buttonDisabled: false,
         registeredAtLabel: formatEventDateTime(state.registration.registeredAt),
         tone: "success"
@@ -128,6 +136,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       return {
         message: state.message,
         showJoinButton: false,
+        showCheckInLink: false,
         buttonDisabled: false,
         registeredAtLabel: null,
         tone: "warning"

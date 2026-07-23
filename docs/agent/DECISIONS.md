@@ -68,3 +68,7 @@
   - Gerekce: QR algoritmasini elle yazmadan, mevcut React/Next arayuzunde bakimi yapilan kucuk bir renderer ile ham tokeni sadece client state ve QR payload icinde tutmak yeterlidir.
 - QR panel payload'i surumlenmis JSON olarak `version=1`, `eventId` ve `token` alanlarini tasir.
   - Gerekce: Gelecekte kamera tarayici veya native istemci eklendiginde payload semasi genisletilebilir; token URL, storage, log veya statik HTML icine yazilmaz.
+- Ogrenci QR tarama icin `html5-qrcode` yalniz `@agu/web` dependency'si olarak eklendi.
+  - Gerekce: QR okuma algoritmasini elle yazmadan, browser kamera erisimi ve QR decode icin bakimi yapilan kucuk bir client-side kutuphane kullanilir. Kamera bileseni dinamik yuklenir ve izin yalniz kullanici aksiyonuyla istenir.
+- `/check-in` parser'i UUID varsayimi yapmadan surumlenmis QR payload'i dogrular.
+  - Gerekce: Backend ID formatindan farkli frontend varsayimi eklenmez; token hata mesajlari, URL, storage veya DOM metni icine sizdirilmez.

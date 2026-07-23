@@ -413,6 +413,109 @@ h1 {
   height: auto;
 }
 
+.check-in-panel {
+  display: grid;
+  gap: 20px;
+  border-top: 1px solid #d7dde3;
+  padding-top: 28px;
+}
+
+.check-in-status,
+.camera-shell,
+.manual-check-in {
+  border: 1px solid #d7dde3;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.check-in-status {
+  display: grid;
+  gap: 8px;
+}
+
+.check-in-status p,
+.camera-shell p {
+  margin-bottom: 0;
+  color: #52616b;
+  line-height: 1.45;
+}
+
+.camera-preview {
+  display: grid;
+  place-items: center;
+  width: min(100%, 420px);
+  min-height: 260px;
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px dashed #9aa8b3;
+  border-radius: 8px;
+  background: #eef2f5;
+}
+
+.camera-preview video {
+  max-width: 100%;
+  height: auto;
+}
+
+.check-in-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.check-in-actions button,
+.manual-check-in button {
+  min-height: 42px;
+  border: 1px solid #0b6f61;
+  border-radius: 8px;
+  background: #0b6f61;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.check-in-actions button {
+  padding: 0 14px;
+}
+
+.check-in-actions button:focus,
+.manual-check-in button:focus,
+.manual-check-in textarea:focus {
+  outline: 3px solid #80bfff;
+  outline-offset: 2px;
+}
+
+.check-in-actions button:disabled,
+.manual-check-in button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.manual-check-in {
+  display: grid;
+  gap: 12px;
+}
+
+.manual-check-in label {
+  display: grid;
+  gap: 6px;
+  color: #33414a;
+  font-weight: 800;
+}
+
+.manual-check-in textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #c8d2da;
+  border-radius: 8px;
+  color: #1f2933;
+  font: inherit;
+  line-height: 1.45;
+  padding: 10px 12px;
+}
+
 .health-panel h2 {
   margin-bottom: 8px;
   font-size: 1rem;

@@ -6,6 +6,7 @@ import type {
   EventRegistrationStatusResponse
 } from "@agu/contracts";
 import { StatusBadge } from "@agu/ui";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   buildRegistrationStatusPath,
@@ -169,6 +170,11 @@ export function EventRegistrationPanel({ apiBaseUrl, eventId }: EventRegistratio
         <button type="button" onClick={register} disabled={view.buttonDisabled}>
           Etkinliğe Katıl
         </button>
+      ) : null}
+      {view.showCheckInLink ? (
+        <Link className="secondary-action" href="/check-in">
+          QR ile Yoklama Ver
+        </Link>
       ) : null}
     </section>
   );

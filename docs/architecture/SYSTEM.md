@@ -64,6 +64,8 @@ Token uretimi `EVENT_ATTENDANCE_TOKEN_ISSUED` audit action'i ile kaydedilir. Aud
 
 Web QR paneli QR icerigini surumlenmis JSON payload olarak uretir: `version=1`, `eventId` ve ham `token`. Ham token metin olarak render edilmez; QR alt/aciklama metnine veya loglara yazilmaz. Kalan sure client tarafinda canli guncellenir; sure dolunca QR gizlenir, token state'i temizlenir ve kullanici yeni token uretmeye yonlendirilir.
 
+Ogrenci yoklama ekrani `/check-in` route'u ile sunulur. Kamera tarayici yalniz client tarafinda, kullanici `Kamerayı Başlat` dugmesine bastiktan sonra dinamik yuklenir; server render sirasinda kamera izni istenmez. Sayfa once `/auth/me` ile principal bilgisini alir, `STUDENT` rolu yoksa tarayiciyi baslatmaz. QR payload parser'i yalniz surum `1`, bos olmayan `eventId` ve bos olmayan `token` kabul eder; UUID gibi backend'den farkli ID varsayimi eklemez. Gecerli payload, `POST /events/:eventId/check-in` istegine yalniz token body'de gonderilerek kullanilir.
+
 ## Bildirim Adaptoru Yaklasimi
 
 `Notification` modeli uygulama ici bildirimleri ve gelecekteki kanal metadata'sini tutar. E-posta, SMS veya push gibi saglayicilar adapter arkasina alinmali; domain servisi saglayici detaylarini bilmemelidir.
@@ -91,6 +93,8 @@ Event registration response'u yalniz `id`, `eventId`, `userId` ve `registeredAt`
 Web public etkinlik kartlari da yalniz public response alanlarini render eder: baslik, kulup adi, tarih/saat, konum, aciklama, kapasite ve yayin durumu. Detay sayfasindaki ogrenci kayit paneli sadece oturum, rol ve kullanicinin kendi kayit durumunu gosterir; kontenjan sayisi veya katilimci listesi gostermez. Development auth paneli yalniz development ortaminda gorunur ve public liste fetch'inden ayri tutulur.
 
 Detay sayfasindaki QR yoklama paneli yetkili olmayan kullanicilara render edilmez. Yetkili kullanicida ham token sadece buton tiklamasindan sonra client bellekte bulunur; statik HTML, metadata, URL, storage, hata mesaji veya accessibility label icine yazilmaz.
+
+Ogrenci check-in ekrani da tokeni URL, storage, log, hata mesaji veya DOM metni olarak render etmez. Kamera stream'i component kapanisinda ve basarili tarama sonrasinda durdurulur. Kamera kullanilamayan durumlarda manuel yedek alan yalniz tam QR JSON payload'ini kabul eder; gonderimden sonra alan temizlenir.
 
 Public detail sayfasi metadata title degerini etkinlik basligindan, description degerini etkinlik aciklamasinin normalize edilmis ve kisaltilmis ozetinden uretir. Metadata icinde internal alan, kullanici bilgisi veya gizli veri bulunmaz. Ayni request yasam dongusunde metadata ve sayfa verisi icin `cache()` ile tekrar azaltimi uygulanir.
 

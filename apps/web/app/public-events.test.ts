@@ -10,6 +10,17 @@ import {
   viewForAttendanceQrState
 } from "./attendance-qr";
 import {
+  INVALID_QR_MESSAGE,
+  buildCheckInSubmitPath,
+  hasCheckInAccess,
+  messageForCheckInResponse,
+  parseCheckInQrPayload,
+  shouldAcceptScan,
+  stateAfterSuccessfulCheckIn,
+  stopQrScannerSafely,
+  viewForCheckInState
+} from "./check-in";
+import {
   buildRegistrationStatusPath,
   buildRegistrationSubmitPath,
   hasStudentRole,
@@ -385,6 +396,7 @@ describe("public event helpers", () => {
     expect(viewForRegistrationState(state)).toMatchObject({
       message: "Bu etkinliğe kayıtlısınız.",
       showJoinButton: false,
+      showCheckInLink: true,
       registeredAtLabel: "23 Temmuz 2026 Perşembe 15:00"
     });
   });
@@ -536,5 +548,155 @@ describe("public event helpers", () => {
       )
     ).toBe(872);
     expect(formatRemainingTime(0)).toBe("0 saniye kaldı");
+  });
+
+  it("parses a valid version 1 check-in QR payload", () => {
+    expect(parseCheckInQrPayload('{"version":1,"eventId":"event-1","token":"token-1"}')).toEqual({
+      ok: true,
+      eventId: "event-1",
+      token: "token-1"
+    });
+  });
+
+  it("rejects invalid check-in QR JSON", () => {
+    expect(parseCheckInQrPayload("not-json")).toEqual({
+      ok: false,
+      message: INVALID_QR_MESSAGE
+    });
+  });
+
+  it("rejects unsupported check-in QR versions", () => {
+    expect(parseCheckInQrPayload('{"version":2,"eventId":"event-1","token":"token-1"}')).toEqual({
+      ok: false,
+      message: INVALID_QR_MESSAGE
+    });
+  });
+
+  it("rejects check-in QR payloads without an event ID", () => {
+    expect(parseCheckInQrPayload('{"version":1,"eventId":"","token":"token-1"}')).toEqual({
+      ok: false,
+      message: INVALID_QR_MESSAGE
+    });
+  });
+
+  it("rejects check-in QR payloads without a token", () => {
+    expect(parseCheckInQrPayload('{"version":1,"eventId":"event-1","token":"  "}')).toEqual({
+      ok: false,
+      message: INVALID_QR_MESSAGE
+    });
+  });
+
+  it("does not allow non-students to start check-in scanning", () => {
+    expect(hasCheckInAccess(studentPrincipal)).toBe(true);
+    expect(hasCheckInAccess(pressPrincipal)).toBe(false);
+    expect(viewForCheckInState({ kind: "forbidden" })).toMatchObject({
+      canStartCamera: false,
+      message: "Bu ekranı kullanmak için öğrenci rolü gerekir."
+    });
+  });
+
+  it("shows a login message when check-in has no session", () => {
+    expect(viewForCheckInState({ kind: "anonymous" })).toMatchObject({
+      canStartCamera: false,
+      message: "Yoklama vermek için öğrenci hesabıyla giriş yapmalısınız."
+    });
+  });
+
+  it("shows a controlled camera permission error", () => {
+    expect(
+      viewForCheckInState({
+        kind: "camera-error",
+        message: "Kamera başlatılamadı. İzinleri kontrol edin veya manuel girişi kullanın.",
+        manualOpen: true
+      })
+    ).toMatchObject({
+      canStartCamera: true,
+      manualOpen: true
+    });
+  });
+
+  it("builds encoded check-in submit endpoints", () => {
+    expect(buildCheckInSubmitPath("event 1/unsafe")).toBe(
+      "/events/event%201%2Funsafe/check-in"
+    );
+  });
+
+  it("ignores a second scan while check-in is submitting", () => {
+    expect(shouldAcceptScan({ kind: "ready", cameraActive: true, manualOpen: false, message: null })).toBe(true);
+    expect(shouldAcceptScan({ kind: "submitting" })).toBe(false);
+  });
+
+  it("clears sensitive payload state after successful check-in", () => {
+    const state = stateAfterSuccessfulCheckIn({
+      id: "attendance-id",
+      eventId: "event-1",
+      userId: "student-id",
+      checkedInAt: "2026-07-23T12:00:00.000Z"
+    });
+
+    expect(state).toMatchObject({ kind: "success" });
+    expect(JSON.stringify(state)).not.toContain("token-1");
+    expect(viewForCheckInState(state)).toMatchObject({
+      message: "Yoklamanız başarıyla alındı.",
+      successCheckedInAtLabel: "23 Temmuz 2026 Perşembe 15:00"
+    });
+  });
+
+  it("stops and clears the QR scanner on cleanup", async () => {
+    const scanner = {
+      stop: vi.fn(async () => undefined),
+      clear: vi.fn()
+    };
+
+    await stopQrScannerSafely(scanner);
+
+    expect(scanner.stop).toHaveBeenCalledOnce();
+    expect(scanner.clear).toHaveBeenCalledOnce();
+  });
+
+  it("uses the same parser flow for manual check-in payloads", () => {
+    const manualPayload = '{"version":1,"eventId":"event-1","token":"token-1"}';
+    const parsed = parseCheckInQrPayload(manualPayload);
+
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(buildCheckInSubmitPath(parsed.eventId)).toBe("/events/event-1/check-in");
+    }
+  });
+
+  it("keeps manual check-in state clean after submission starts", () => {
+    expect(viewForCheckInState({ kind: "submitting" })).toMatchObject({
+      manualOpen: false,
+      canSubmitManual: false,
+      isSubmitting: true
+    });
+  });
+
+  it("maps check-in API failures to safe messages", () => {
+    expect(messageForCheckInResponse(400)).toBe("QR kod geçersiz veya süresi dolmuş.");
+    expect(messageForCheckInResponse(401)).toBe("Oturumunuz sona ermiş. Tekrar giriş yapın.");
+    expect(messageForCheckInResponse(403)).toBe(
+      "Bu etkinlik için yoklama verme yetkiniz veya kaydınız bulunmuyor."
+    );
+    expect(messageForCheckInResponse(404)).toBe(
+      "Etkinlik bulunamadı veya artık kullanılamıyor."
+    );
+    expect(messageForCheckInResponse(409)).toBe(
+      "Yoklama zamanı uygun değil veya yoklamanız daha önce alınmış."
+    );
+    expect(messageForCheckInResponse(500)).toBe(
+      "Yoklama gönderilemedi. Lütfen tekrar deneyin."
+    );
+  });
+
+  it("does not put check-in tokens in view text, URLs, or storage helpers", () => {
+    const token = "plain-token";
+    const parsed = parseCheckInQrPayload(
+      JSON.stringify({ version: 1, eventId: "event-1", token })
+    );
+
+    expect(parsed.ok).toBe(true);
+    expect(buildCheckInSubmitPath("event-1")).not.toContain(token);
+    expect(JSON.stringify(viewForCheckInState({ kind: "submitting" }))).not.toContain(token);
   });
 });

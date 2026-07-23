@@ -24,6 +24,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Ogrencinin yayinlanmis ve henuz baslamamis etkinlige detay sayfasindan tekil kayit olmasi ve kendi kayit durumunu gormesi.
 - Kulup yoneticisinin etkinlik detay sayfasinda kisa omurlu QR katilim tokeni uretmesi, QR gorselini yenileyebilmesi ve kalan sureyi gorebilmesi.
 - Kayitli ogrencinin etkinlik gunu QR token ile tekil attendance kaydi olusturmasi.
+- Ogrencinin `/check-in` ekraninda kamera veya manuel QR payload yedegiyle yoklama vermesi.
 - QR token ham degerini saklamadan katilim dogrulama mimarisi.
 - Audit log ve bildirim adaptoru icin baslangic sinirlari.
 
@@ -45,6 +46,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Ogrenci yayinlanmis ve henuz baslamamis etkinlige kapasite uygunsa detay sayfasindan bir kez kayit olur; sayfa yenilendiginde kayitli durumu korunur.
 - Kulup yoneticisi etkinlik gunu katilim icin kisa omurlu QR token uretir, QR gorselini katilim noktasinda gosterir ve gerekirse yeniler.
 - Kayitli ogrenci etkinlik gunu QR token ile yalnizca bir attendance kaydi olusturur.
+- Ogrenci kamera kullanarak veya kamera kullanilamiyorsa QR payload'ini manuel girerek yoklama verir.
 - Kulup yoneticisi etkinlik katilim sayilarini gorur.
 
 ## Basari Olcutleri
@@ -69,3 +71,4 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - QR tokenin 15 dakikalik MVP gecerlilik suresi operasyon icin yeterli mi?
 - Kulup yetkilileri AGU tarafindan mi atanacak, yoksa kulup adminleri yeni uye ekleyebilecek mi?
 - Bildirim kanallari hangi sirayla devreye alinacak?
+- Gercek cihaz kamera testleri icin hangi browser/cihaz matrisi kabul edilecek?
