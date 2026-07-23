@@ -181,7 +181,8 @@ describe("POST /events", () => {
           OR: [
             { slug: { startsWith: "integration-submit-event" } },
             { slug: { startsWith: "integration-review-event" } },
-            { slug: { startsWith: "integration-publish-event" } }
+            { slug: { startsWith: "integration-publish-event" } },
+            { slug: { startsWith: "integration-public-event" } }
           ]
         },
         select: { id: true }
@@ -227,6 +228,236 @@ describe("POST /events", () => {
 
   it("returns 401 without authentication", async () => {
     await request(app.getHttpServer()).post("/events").send(validBody(clubId)).expect(401);
+  });
+
+  it("lists public events without authentication", async () => {
+    await createPublicEvent("integration-public-event-unauth", {
+      title: "Public Unaith Listed Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer())
+      .get("/events")
+      .query({ q: "Unaith Listed" })
+      .expect(200);
+  });
+
+  it("lists only future published events and omits internal fields", async () => {
+    const event = await createPublicEvent("integration-public-event-visible", {
+      title: "Public Visible Event",
+      description: "Public visible description",
+      status: "PUBLISHED"
+    });
+    await createPublicEvent("integration-public-event-draft-hidden", {
+      title: "Public Visible Draft",
+      status: "DRAFT"
+    });
+    await createPublicEvent("integration-public-event-approved-hidden", {
+      title: "Public Visible Approved",
+      status: "APPROVED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/events")
+      .query({ q: "Public Visible" })
+      .expect(200);
+
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0]).toMatchObject({
+      id: event.id,
+      title: "Public Visible Event",
+      status: "PUBLISHED",
+      club: {
+        id: clubId,
+        name: expect.any(String),
+        slug: "agu-yazilim-kulubu"
+      }
+    });
+    expect(response.body.items[0]).not.toHaveProperty("createdById");
+    expect(response.body.items[0]).not.toHaveProperty("qrTokenHash");
+    expect(response.body.items[0]).not.toHaveProperty("reviews");
+    expect(response.body.items[0]).not.toHaveProperty("auditLogs");
+  });
+
+  it("excludes past published events by default", async () => {
+    const futureEvent = await createPublicEvent("integration-public-event-default-future", {
+      title: "Public Default Window",
+      startsAt: new Date("2026-08-12T11:00:00.000Z"),
+      status: "PUBLISHED"
+    });
+    await createPublicEvent("integration-public-event-default-past", {
+      title: "Public Default Window",
+      startsAt: new Date("2026-07-01T11:00:00.000Z"),
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/events")
+      .query({ q: "Public Default Window" })
+      .expect(200);
+
+    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual([futureEvent.id]);
+  });
+
+  it("filters public events by inclusive from and to", async () => {
+    const inside = await createPublicEvent("integration-public-event-range-inside", {
+      title: "Public Range Event",
+      startsAt: new Date("2026-08-10T11:00:00.000Z"),
+      status: "PUBLISHED"
+    });
+    await createPublicEvent("integration-public-event-range-outside", {
+      title: "Public Range Event",
+      startsAt: new Date("2026-08-12T11:00:00.000Z"),
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/events")
+      .query({
+        q: "Public Range Event",
+        from: "2026-08-10T11:00:00Z",
+        to: "2026-08-10T11:00:00Z"
+      })
+      .expect(200);
+
+    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual([inside.id]);
+  });
+
+  it("filters public events by clubId", async () => {
+    const event = await createPublicEvent("integration-public-event-club-filter", {
+      title: "Public Club Filter",
+      status: "PUBLISHED"
+    });
+    await createPublicEvent("integration-public-event-other-club-filter", {
+      title: "Public Club Filter",
+      clubId: otherClubId,
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/events")
+      .query({ q: "Public Club Filter", clubId })
+      .expect(200);
+
+    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual([event.id]);
+  });
+
+  it("filters public events by q in title and description", async () => {
+    const titleMatch = await createPublicEvent("integration-public-event-q-title", {
+      title: "Public Search Needle",
+      description: "Different text",
+      status: "PUBLISHED"
+    });
+    const descriptionMatch = await createPublicEvent("integration-public-event-q-description", {
+      title: "Different title",
+      description: "Public search needle description",
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/events")
+      .query({ q: " search needle " })
+      .expect(200);
+
+    expect(response.body.items.map((item: { id: string }) => item.id).sort()).toEqual(
+      [titleMatch.id, descriptionMatch.id].sort()
+    );
+  });
+
+  it("returns pagination metadata and deterministic ordering", async () => {
+    const sameStart = new Date("2026-08-15T11:00:00.000Z");
+    const first = await createPublicEvent("integration-public-event-page-1", {
+      title: "Public Pagination Event",
+      startsAt: sameStart,
+      status: "PUBLISHED"
+    });
+    const second = await createPublicEvent("integration-public-event-page-2", {
+      title: "Public Pagination Event",
+      startsAt: sameStart,
+      status: "PUBLISHED"
+    });
+    const third = await createPublicEvent("integration-public-event-page-3", {
+      title: "Public Pagination Event",
+      startsAt: new Date("2026-08-16T11:00:00.000Z"),
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/events")
+      .query({ q: "Public Pagination Event", page: 1, pageSize: 2 })
+      .expect(200);
+
+    expect(response.body.pagination).toEqual({
+      page: 1,
+      pageSize: 2,
+      totalItems: 3,
+      totalPages: 2
+    });
+    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(
+      [first.id, second.id].sort()
+    );
+
+    const secondPage = await request(app.getHttpServer())
+      .get("/events")
+      .query({ q: "Public Pagination Event", page: 2, pageSize: 2 })
+      .expect(200);
+    expect(secondPage.body.items.map((item: { id: string }) => item.id)).toEqual([third.id]);
+  });
+
+  it("returns 400 for invalid public list query values", async () => {
+    await request(app.getHttpServer())
+      .get("/events")
+      .query({ from: "not-a-date" })
+      .expect(400);
+    await request(app.getHttpServer())
+      .get("/events")
+      .query({ from: "2026-08-11T00:00:00Z", to: "2026-08-10T00:00:00Z" })
+      .expect(400);
+    await request(app.getHttpServer()).get("/events").query({ page: 0 }).expect(400);
+    await request(app.getHttpServer()).get("/events").query({ pageSize: 101 }).expect(400);
+  });
+
+  it("returns public detail only for published events", async () => {
+    const event = await createPublicEvent("integration-public-event-detail", {
+      title: "Public Detail Event",
+      status: "PUBLISHED"
+    });
+
+    const response = await request(app.getHttpServer()).get(`/events/${event.id}`).expect(200);
+
+    expect(response.body).toMatchObject({
+      id: event.id,
+      title: "Public Detail Event",
+      status: "PUBLISHED",
+      club: {
+        id: clubId,
+        name: expect.any(String),
+        slug: "agu-yazilim-kulubu"
+      }
+    });
+    expect(response.body).not.toHaveProperty("createdById");
+    expect(response.body).not.toHaveProperty("qrTokenHash");
+  });
+
+  it("hides draft and approved public detail with 404", async () => {
+    const draft = await createPublicEvent("integration-public-event-detail-draft", {
+      title: "Public Hidden Draft Detail",
+      status: "DRAFT"
+    });
+    const approved = await createPublicEvent("integration-public-event-detail-approved", {
+      title: "Public Hidden Approved Detail",
+      status: "APPROVED"
+    });
+
+    await request(app.getHttpServer()).get(`/events/${draft.id}`).expect(404);
+    await request(app.getHttpServer()).get(`/events/${approved.id}`).expect(404);
+  });
+
+  it("returns 404 for unknown public detail and 400 for invalid detail id", async () => {
+    await request(app.getHttpServer())
+      .get("/events/00000000-0000-4000-8000-000000000000")
+      .expect(404);
+    await request(app.getHttpServer()).get("/events/not-a-valid-id").expect(400);
   });
 
   it("creates a draft event for an authorized seed club admin", async () => {
@@ -752,6 +983,26 @@ describe("POST /events", () => {
     expect(auditCount).toBe(0);
   });
 
+  it("keeps existing submit, review, and publish routes working alongside public detail", async () => {
+    const draft = await createDraftEvent("integration-public-event-route-submit");
+    await request(app.getHttpServer())
+      .post(`/events/${draft.id}/submit`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    const submitted = await createSubmittedEvent("integration-public-event-route-review");
+    await request(app.getHttpServer())
+      .post(`/events/${submitted.id}/approve`)
+      .set("Cookie", pressCookie)
+      .expect(200);
+
+    const approved = await createApprovedEvent("integration-public-event-route-publish");
+    await request(app.getHttpServer())
+      .post(`/events/${approved.id}/publish`)
+      .set("Cookie", pressCookie)
+      .expect(200);
+  });
+
   async function createDraftEvent(slugPrefix: string) {
     return prisma.event.create({
       data: {
@@ -799,6 +1050,34 @@ describe("POST /events", () => {
         location: "AGU Buyuk Amfi",
         capacity: 100,
         status: "APPROVED"
+      }
+    });
+  }
+
+  async function createPublicEvent(
+    slugPrefix: string,
+    input: {
+      title: string;
+      description?: string;
+      startsAt?: Date;
+      clubId?: string;
+      status: "DRAFT" | "SUBMITTED" | "CHANGES_REQUESTED" | "REJECTED" | "APPROVED" | "PUBLISHED" | "CANCELLED" | "COMPLETED";
+    }
+  ) {
+    const startsAt = input.startsAt ?? new Date("2026-08-10T11:00:00.000Z");
+    return prisma.event.create({
+      data: {
+        clubId: input.clubId ?? clubId,
+        createdById: clubAdminId,
+        title: input.title,
+        slug: `${slugPrefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        description: input.description ?? `${input.title} description`,
+        startsAt,
+        endsAt: new Date(startsAt.getTime() + 2 * 60 * 60 * 1000),
+        location: "AGU Buyuk Amfi",
+        capacity: 100,
+        status: input.status,
+        publishedAt: input.status === "PUBLISHED" ? new Date("2026-07-23T12:00:00.000Z") : null
       }
     });
   }

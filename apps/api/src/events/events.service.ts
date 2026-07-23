@@ -5,13 +5,33 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import type { EventReviewDecision, EventStatus } from "@prisma/client";
+import type { EventReviewDecision, EventStatus, Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { AuthorizationService } from "../auth/authorization.service";
 import type { Principal } from "../auth/principal";
 import { PrismaService } from "../prisma/prisma.service";
 import type { CreateDraftEventDto, ValidCreateDraftEventInput } from "./dto/create-draft-event.dto";
+import type { PublicEventsQueryDto } from "./dto/public-events-query.dto";
 import { EventLifecycleService } from "./event-lifecycle.service";
+
+const PUBLIC_EVENT_SELECT = {
+  id: true,
+  title: true,
+  description: true,
+  startsAt: true,
+  endsAt: true,
+  location: true,
+  capacity: true,
+  status: true,
+  publishedAt: true,
+  club: {
+    select: {
+      id: true,
+      name: true,
+      slug: true
+    }
+  }
+} satisfies Prisma.EventSelect;
 
 @Injectable()
 export class EventsService {
@@ -20,6 +40,49 @@ export class EventsService {
     private readonly authorizationService: AuthorizationService,
     private readonly eventLifecycleService: EventLifecycleService
   ) {}
+
+  async listPublicEvents(query: PublicEventsQueryDto) {
+    const input = this.validatePublicEventsQuery(query);
+    const where = this.createPublicEventsWhere(input);
+    const [totalItems, items] = await Promise.all([
+      this.prisma.event.count({ where }),
+      this.prisma.event.findMany({
+        where,
+        select: PUBLIC_EVENT_SELECT,
+        orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+        skip: (input.page - 1) * input.pageSize,
+        take: input.pageSize
+      })
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page: input.page,
+        pageSize: input.pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / input.pageSize)
+      }
+    };
+  }
+
+  async getPublicEvent(eventId: string) {
+    this.assertValidEventId(eventId);
+
+    const event = await this.prisma.event.findFirst({
+      where: {
+        id: eventId,
+        status: "PUBLISHED"
+      },
+      select: PUBLIC_EVENT_SELECT
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    return event;
+  }
 
   async createDraftEvent(principal: Principal, dto: CreateDraftEventDto) {
     const input = this.validateCreateDraftEvent(dto);
@@ -320,6 +383,86 @@ export class EventsService {
     }
 
     return date;
+  }
+
+  private validatePublicEventsQuery(query: PublicEventsQueryDto) {
+    const from = this.optionalIsoDate(query.from, "from") ?? new Date();
+    const to = this.optionalIsoDate(query.to, "to");
+    if (to && from > to) {
+      throw new BadRequestException("from must be before or equal to to.");
+    }
+
+    const page = this.optionalPositiveIntegerString(query.page, "page") ?? 1;
+    const pageSize = this.optionalPositiveIntegerString(query.pageSize, "pageSize") ?? 20;
+    if (pageSize > 100) {
+      throw new BadRequestException("pageSize must be less than or equal to 100.");
+    }
+
+    return {
+      from,
+      to,
+      clubId: this.optionalTrimmedString(query.clubId),
+      q: this.optionalTrimmedString(query.q),
+      page,
+      pageSize
+    };
+  }
+
+  private createPublicEventsWhere(input: {
+    from: Date;
+    to: Date | null;
+    clubId: string | null;
+    q: string | null;
+  }): Prisma.EventWhereInput {
+    const where: Prisma.EventWhereInput = {
+      status: "PUBLISHED",
+      startsAt: {
+        gte: input.from,
+        ...(input.to ? { lte: input.to } : {})
+      }
+    };
+
+    if (input.clubId) {
+      where.clubId = input.clubId;
+    }
+
+    if (input.q) {
+      where.OR = [
+        { title: { contains: input.q, mode: "insensitive" } },
+        { description: { contains: input.q, mode: "insensitive" } }
+      ];
+    }
+
+    return where;
+  }
+
+  private optionalIsoDate(value: unknown, field: string): Date | null {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+
+    return this.requiredIsoDate(value, field);
+  }
+
+  private optionalTrimmedString(value: unknown): string | null {
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private optionalPositiveIntegerString(value: unknown, field: string): number | null {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+
+    if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) {
+      throw new BadRequestException(`${field} must be a positive integer.`);
+    }
+
+    return Number(value);
   }
 
   private optionalPositiveInteger(value: unknown, field: string): number | null {

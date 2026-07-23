@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import type { Principal } from "../auth/principal";
+import { toPublicEventListItem, type PublicEventRecord } from "./event-response";
 import { EventsService } from "./events.service";
 
 const clubAdmin: Principal = {
@@ -60,6 +61,22 @@ const validRequest = {
   createdById: "forged-user-id"
 };
 
+type CreateServiceOptions = {
+  canCreate?: boolean;
+  canSubmit?: boolean;
+  canReview?: boolean;
+  canPublish?: boolean;
+  clubExists?: boolean;
+  existingStatus?: string;
+  updateCount?: number;
+  updatedStatus?: string;
+  auditFails?: boolean;
+  reviewFails?: boolean;
+  publicItems?: PublicEventRecord[];
+  publicDetail?: PublicEventRecord | null;
+  publicCount?: number;
+};
+
 function createService({
   canCreate = true,
   canSubmit = true,
@@ -70,8 +87,11 @@ function createService({
   updateCount = 1,
   updatedStatus = "SUBMITTED",
   auditFails = false,
-  reviewFails = false
-} = {}) {
+  reviewFails = false,
+  publicItems = [],
+  publicDetail = null,
+  publicCount = publicItems.length
+}: CreateServiceOptions = {}) {
   const createdEvent = {
     id: "event-id",
     clubId: "club-id",
@@ -105,6 +125,9 @@ function createService({
         status: existingStatus,
         createdById: "club-admin-id"
       }),
+      findFirst: vi.fn().mockResolvedValue(publicDetail),
+      findMany: vi.fn().mockResolvedValue(publicItems),
+      count: vi.fn().mockResolvedValue(publicCount),
       create: vi.fn().mockResolvedValue(createdEvent)
     },
     $transaction: vi.fn(async (callback) =>
@@ -163,6 +186,188 @@ function createService({
 }
 
 describe("EventsService", () => {
+  const futurePublicEvent: PublicEventRecord & {
+    createdById: string;
+    qrTokenHash: string;
+  } = {
+    id: "public-event-id",
+    title: "Published Event",
+    description: "Published description",
+    startsAt: new Date("2026-08-10T11:00:00.000Z"),
+    endsAt: new Date("2026-08-10T13:00:00.000Z"),
+    location: "AGU Buyuk Amfi",
+    capacity: 100,
+    status: "PUBLISHED",
+    publishedAt: new Date("2026-07-23T12:00:00.000Z"),
+    club: {
+      id: "club-id",
+      name: "AGU Yazilim Kulubu",
+      slug: "agu-yazilim-kulubu"
+    },
+    createdById: "internal-user-id",
+    qrTokenHash: "internal-token-hash"
+  };
+
+  it("lists only published events", async () => {
+    const { service, prisma } = createService({ publicItems: [futurePublicEvent] });
+
+    const result = await service.listPublicEvents({});
+
+    expect(result.items).toHaveLength(1);
+    expect(prisma.event.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({ status: "PUBLISHED" })
+    });
+    expect(prisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: "PUBLISHED" })
+      })
+    );
+  });
+
+  it("excludes draft, submitted, approved, and rejected events through the public status filter", async () => {
+    const { service, prisma } = createService();
+
+    await service.listPublicEvents({});
+
+    expect(prisma.event.findMany.mock.calls[0]?.[0].where.status).toBe("PUBLISHED");
+  });
+
+  it("excludes past events by default", async () => {
+    const { service, prisma } = createService();
+
+    await service.listPublicEvents({});
+
+    expect(prisma.event.findMany.mock.calls[0]?.[0].where.startsAt.gte).toBeInstanceOf(Date);
+  });
+
+  it("applies from and to filters inclusively", async () => {
+    const { service, prisma } = createService();
+
+    await service.listPublicEvents({
+      from: "2026-08-10T00:00:00Z",
+      to: "2026-08-10T23:59:59Z"
+    });
+
+    expect(prisma.event.findMany.mock.calls[0]?.[0].where.startsAt).toEqual({
+      gte: new Date("2026-08-10T00:00:00Z"),
+      lte: new Date("2026-08-10T23:59:59Z")
+    });
+  });
+
+  it("rejects invalid date ranges", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.listPublicEvents({
+        from: "2026-08-11T00:00:00Z",
+        to: "2026-08-10T00:00:00Z"
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("applies club filtering", async () => {
+    const { service, prisma } = createService();
+
+    await service.listPublicEvents({ clubId: "club-id" });
+
+    expect(prisma.event.findMany.mock.calls[0]?.[0].where.clubId).toBe("club-id");
+  });
+
+  it("searches title case-insensitively", async () => {
+    const { service, prisma } = createService();
+
+    await service.listPublicEvents({ q: "  yazilim  " });
+
+    expect(prisma.event.findMany.mock.calls[0]?.[0].where.OR).toContainEqual({
+      title: { contains: "yazilim", mode: "insensitive" }
+    });
+  });
+
+  it("searches description case-insensitively", async () => {
+    const { service, prisma } = createService();
+
+    await service.listPublicEvents({ q: "kampus" });
+
+    expect(prisma.event.findMany.mock.calls[0]?.[0].where.OR).toContainEqual({
+      description: { contains: "kampus", mode: "insensitive" }
+    });
+  });
+
+  it("applies pagination values", async () => {
+    const { service, prisma } = createService({ publicCount: 45 });
+
+    const result = await service.listPublicEvents({ page: "2", pageSize: "10" });
+
+    expect(prisma.event.findMany.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ skip: 10, take: 10 })
+    );
+    expect(result.pagination).toEqual({
+      page: 2,
+      pageSize: 10,
+      totalItems: 45,
+      totalPages: 5
+    });
+  });
+
+  it("rejects pageSize greater than 100", async () => {
+    const { service } = createService();
+
+    await expect(service.listPublicEvents({ pageSize: "101" })).rejects.toBeInstanceOf(
+      BadRequestException
+    );
+  });
+
+  it("orders results by startsAt and then id ascending", async () => {
+    const { service, prisma } = createService();
+
+    await service.listPublicEvents({});
+
+    expect(prisma.event.findMany.mock.calls[0]?.[0].orderBy).toEqual([
+      { startsAt: "asc" },
+      { id: "asc" }
+    ]);
+  });
+
+  it("public mapper omits internal fields", () => {
+    const response = toPublicEventListItem(futurePublicEvent);
+
+    expect(response).not.toHaveProperty("createdById");
+    expect(response).not.toHaveProperty("qrTokenHash");
+    expect(response).not.toHaveProperty("reviews");
+    expect(response).not.toHaveProperty("auditLogs");
+  });
+
+  it("returns public detail for published events only", async () => {
+    const { service, prisma } = createService({ publicDetail: futurePublicEvent });
+
+    const event = await service.getPublicEvent("11111111-1111-4111-8111-111111111111");
+
+    expect(event.id).toBe("public-event-id");
+    expect(prisma.event.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "11111111-1111-4111-8111-111111111111",
+        status: "PUBLISHED"
+      },
+      select: expect.any(Object)
+    });
+  });
+
+  it("returns not found for non-public event detail", async () => {
+    const { service } = createService({ publicDetail: null });
+
+    await expect(
+      service.getPublicEvent("11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("returns not found for an unknown public detail", async () => {
+    const { service } = createService({ publicDetail: null });
+
+    await expect(
+      service.getPublicEvent("00000000-0000-4000-8000-000000000000")
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it("creates a draft event for an authorized club admin", async () => {
     const { service, prisma } = createService();
 

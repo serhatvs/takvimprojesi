@@ -14,6 +14,8 @@
 
 Web uygulamasi urun deneyimini ve istemci tarafli durumlari yonetir. Yetki, durum gecisi ve veri butunlugu API tarafinda zorunlu kilinir. Web, REST endpointlerini `packages/contracts` tiplerine gore kullanir; controller icinde is mantigi tutulmaz.
 
+Public etkinlik kesfi `GET /events` ve `GET /events/:eventId` endpointleriyle authentication gerektirmeden sunulur. Bu endpointler yalnizca `PUBLISHED` etkinlikleri gosterir; public olmayan veya bilinmeyen event ID'leri varlik bilgisi sizdirmamak icin `404 Not Found` doner.
+
 ## Veritabani Yaklasimi
 
 PostgreSQL ana veri deposudur. Prisma schema domain iliskilerini, indeksleri ve benzersizlik kurallarini tanimlar. Migration dosyalari veri etkisi kontrol edilerek uretilmelidir. Tarihler UTC olarak saklanir.
@@ -36,6 +38,8 @@ Basin Yayin inceleme islemleri yalnizca `PRESS_EDITOR` veya `SYSTEM_ADMIN` taraf
 
 Yayinlama islemi yalnizca `PRESS_EDITOR` veya `SYSTEM_ADMIN` tarafindan `APPROVED -> PUBLISHED` gecisi icin yapilir. Event status kosullu olarak yalnizca mevcut durum `APPROVED` iken guncellenir, mevcut `publishedAt` alani UTC islem zamaniyla doldurulur ve audit kaydi ayni transaction icinde olusturulur. Tekrarli veya eszamanli ikinci publish `409 Conflict` doner.
 
+Public listeleme varsayilan olarak mevcut zamandan sonraki `PUBLISHED` etkinlikleri `startsAt ASC, id ASC` siralar. `from` ve `to` filtreleri `startsAt` uzerinden dahilidir; `clubId`, trim edilmis case-insensitive `q`, `page` ve `pageSize` desteklenir. Varsayilan `page=1`, `pageSize=20`, maksimum `pageSize=100` olarak uygulanir.
+
 ## QR Katilim Yaklasimi
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.
@@ -57,6 +61,8 @@ Publish islemi icin audit action `EVENT_PUBLISHED` olarak tutulur. Audit kaydi o
 ## Guvenlik ve Kisisel Veri Minimizasyonu
 
 Yalnizca gerekli kullanici bilgileri saklanir. Gizli degerler repoya yazilmaz; `.env.example` yalnizca ornek gelistirme degerleri tasir. Session secret `.env` uzerinden gelir. Session cookie `HttpOnly`, `SameSite=Lax` ve production ortaminda `Secure` olarak yazilir. QR token ham degeri kalici saklama zorunlulugu yoktur. Yetki kontrolleri API tarafinda uygulanir.
+
+Public event response'lari `createdById`, kullanici e-postasi, uyelik bilgisi, review, audit, QR token hash ve internal metadata dondurmez; yalniz takvim ve detay gorunumu icin gerekli event ve kulup alanlarini secer.
 
 ## Gelecekte AGU SSO Entegrasyon Noktasi
 

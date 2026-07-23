@@ -18,7 +18,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Kulup ve kulup uyeligi modeli.
 - Etkinlik olusturma, onaya gonderme ve durum gecisi servis siniri.
 - Basin Yayin inceleme kayit modeli.
-- Onaylanan/yayinlanan etkinliklerin kampus takvimine hazir hale gelmesi.
+- Onaylanan etkinliklerin yayinlanmasi ve yayinlanmis etkinliklerin public liste/detay API'leriyle kampus takvimine hazir hale gelmesi.
 - Ogrenci kaydi ve tekil attendance kaydi icin veri modeli.
 - QR token ham degerini saklamadan katilim dogrulama mimarisi.
 - Audit log ve bildirim adaptoru icin baslangic sinirlari.
@@ -36,6 +36,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 
 - Kulup yoneticisi taslak etkinlik olusturur ve Basin Yayin onayina gonderir.
 - Basin Yayin editoru aciklama ekleyerek onaylar, reddeder veya degisiklik ister.
+- Herkes yayinlanmis gelecek etkinlikleri kampus takvimi icin listeler ve public detayini acar.
 - Ogrenci yayinlanmis etkinlige bir kez kayit olur.
 - Ogrenci etkinlik gunu QR ile yalnizca bir attendance kaydi olusturur.
 - Kulup yoneticisi etkinlik katilim sayilarini gorur.
@@ -44,7 +45,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 
 - Kulup etkinliklerinin onay sureci sistem uzerinden izlenebilir.
 - Gecersiz etkinlik durum gecisleri API servis katmaninda engellenir.
-- Yayinlanan etkinlikler merkezi takvim icin tutarli veri uretir.
+- Yayinlanan etkinlikler merkezi takvim icin public liste ve detay verisi uretir.
 - Kayit ve attendance tekillik kurallari veritabani tarafinda korunur.
 - Kritik durum degisiklikleri audit log ile geriye donuk incelenebilir.
 
@@ -58,7 +59,6 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 
 ## Acik Sorular
 
-- Basin Yayin onayindan sonra yayinlama otomatik mi olacak, yoksa ayri bir editor aksiyonu mu gerekecek?
 - Etkinlik kapasitesi doldugunda bekleme listesi gerekecek mi?
 - Attendance icin QR kodun gecerlilik suresi ne kadar olmali?
 - Kulup yetkilileri AGU tarafindan mi atanacak, yoksa kulup adminleri yeni uye ekleyebilecek mi?

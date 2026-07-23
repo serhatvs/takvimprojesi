@@ -50,3 +50,5 @@
   - Gerekce: Mevcut model karar, reviewer ve createdAt bilgisini guvenilir sekilde tasiyor. Red ve degisiklik isteme icin yorum zorunlu tutularak karar gerekcesi korunur; approve icin urun kapsaminda zorunlu yorum istenmedi.
 - Publish akisi mevcut `Event.publishedAt` alanini kullanir ve migration olusturmaz.
   - Gerekce: Urun ve sorgulama icin yayinlanma zamanini status degisiminden ayri saklamak gereklidir; alan baslangic schema'sinda zaten UTC DateTime olarak vardir.
+- Public event listeleme varsayilan olarak `from = now`, `page = 1`, `pageSize = 20`, maksimum `pageSize = 100` kullanir.
+  - Gerekce: Kampus takvimi ilk acilista gelecek etkinlikleri gostermelidir; pagination siniri yanlis veya pahali public sorgulari engeller. Gecmis etkinliklere ihtiyac olursa istemci acik `from` filtresi gonderebilir.

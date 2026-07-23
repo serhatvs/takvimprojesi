@@ -109,5 +109,49 @@ export interface ReviewEventRequest {
   comment?: string;
 }
 
+export interface PublicEventClub {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface PublicEventListItem {
+  id: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+  status: "PUBLISHED";
+  publishedAt: string | null;
+  club: PublicEventClub;
+}
+
+export interface PublicEventDetailResponse {
+  id: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+  status: "PUBLISHED";
+  publishedAt: string | null;
+  club: PublicEventClub;
+}
+
+export interface PaginationResponse {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface PublicEventListResponse {
+  items: PublicEventListItem[];
+  pagination: PaginationResponse;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

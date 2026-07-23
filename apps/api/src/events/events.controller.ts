@@ -1,15 +1,36 @@
-import { Body, Controller, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { AuthenticationGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { Principal } from "../auth/principal";
 import type { CreateDraftEventDto } from "./dto/create-draft-event.dto";
+import type { PublicEventsQueryDto } from "./dto/public-events-query.dto";
 import type { ReviewEventDto } from "./dto/review-event.dto";
-import { toDraftEventResponse, toEventResponse } from "./event-response";
+import {
+  toDraftEventResponse,
+  toEventResponse,
+  toPublicEventDetailResponse,
+  toPublicEventListItem
+} from "./event-response";
 import { EventsService } from "./events.service";
 
 @Controller("events")
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
+
+  @Get()
+  async listPublicEvents(@Query() query: PublicEventsQueryDto) {
+    const result = await this.eventsService.listPublicEvents(query);
+    return {
+      items: result.items.map(toPublicEventListItem),
+      pagination: result.pagination
+    };
+  }
+
+  @Get(":eventId")
+  async getPublicEvent(@Param("eventId") eventId: string) {
+    const event = await this.eventsService.getPublicEvent(eventId);
+    return toPublicEventDetailResponse(event);
+  }
 
   @Post()
   @UseGuards(AuthenticationGuard)
