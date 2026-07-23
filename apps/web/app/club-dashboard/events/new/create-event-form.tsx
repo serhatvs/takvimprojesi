@@ -3,6 +3,11 @@
 import type { ManageableClub } from "@agu/contracts";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import {
+  getSafeErrorMessage,
+  parseLocalToIstanbulUtc,
+  validateCapacity
+} from "./create-event-helper";
 
 type CreateEventFormProps = {
   clubs: ManageableClub[];
@@ -10,34 +15,26 @@ type CreateEventFormProps = {
   apiBaseUrl: string;
 };
 
-function parseLocalToIstanbulUtc(localDateTimeString: string): string {
-  if (!localDateTimeString) return "";
-  // datetime-local input value is in format "YYYY-MM-DDTHH:mm"
-  // Appending "+03:00" explicitly sets the timezone to Istanbul time
-  const date = new Date(`${localDateTimeString}:00.000+03:00`);
-  return date.toISOString();
-}
-
 export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEventFormProps) {
   const router = useRouter();
   const submittingRef = useRef(false);
   const [error, setError] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Form field state to preserve inputs on error
+  const [selectedClubId, setSelectedClubId] = useState(initialClubId);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+  const [startsAtLocal, setStartsAtLocal] = useState("");
+  const [endsAtLocal, setEndsAtLocal] = useState("");
+  const [capacityRaw, setCapacityRaw] = useState("");
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submittingRef.current) return;
 
     setError("");
-    const formData = new FormData(e.currentTarget);
-
-    const clubId = formData.get("clubId") as string;
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
-    const location = formData.get("location") as string;
-    const startsAtLocal = formData.get("startsAt") as string;
-    const endsAtLocal = formData.get("endsAt") as string;
-    const capacityRaw = formData.get("capacity") as string;
 
     if (!title.trim() || !description.trim() || !location.trim() || !startsAtLocal || !endsAtLocal) {
       setError("Lütfen tüm zorunlu alanları doldurun.");
@@ -46,15 +43,20 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
 
     const startsAt = parseLocalToIstanbulUtc(startsAtLocal);
     const endsAt = parseLocalToIstanbulUtc(endsAtLocal);
-    const capacity = capacityRaw ? parseInt(capacityRaw, 10) : undefined;
+
+    if (!startsAt || !endsAt) {
+      setError("Lütfen geçerli bir başlangıç ve bitiş zamanı girin.");
+      return;
+    }
 
     if (new Date(startsAt) >= new Date(endsAt)) {
       setError("Başlangıç zamanı bitiş zamanından önce olmalıdır.");
       return;
     }
 
-    if (capacity !== undefined && (isNaN(capacity) || capacity <= 0)) {
-      setError("Kapasite pozitif bir tam sayı olmalıdır.");
+    const capResult = validateCapacity(capacityRaw);
+    if (!capResult.valid) {
+      setError(capResult.error || "Geçersiz kapasite değeri.");
       return;
     }
 
@@ -62,44 +64,38 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
     setIsSubmitting(true);
 
     try {
+      const bodyPayload: Record<string, unknown> = {
+        clubId: selectedClubId,
+        title: title.trim(),
+        description: description.trim(),
+        location: location.trim(),
+        startsAt,
+        endsAt
+      };
+
+      if (capResult.value !== undefined) {
+        bodyPayload.capacity = capResult.value;
+      }
+
       const response = await fetch(`${apiBaseUrl}/events`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         credentials: "include",
-        body: JSON.stringify({
-          clubId,
-          title: title.trim(),
-          description: description.trim(),
-          location: location.trim(),
-          startsAt,
-          endsAt,
-          capacity
-        })
+        cache: "no-store",
+        body: JSON.stringify(bodyPayload)
       });
 
       if (response.ok) {
-        // const event = (await response.json()) as DraftEventResponse;
-        router.push(`/club-dashboard?clubId=${clubId}`);
+        router.push(`/club-dashboard?clubId=${selectedClubId}`);
         router.refresh();
         return;
       }
 
-      if (response.status === 400) {
-        const body = (await response.json()) as { message?: unknown };
-        setError(typeof body.message === "string" ? body.message : "Geçersiz form verisi.");
-        return;
-      }
-
-      if (response.status === 401 || response.status === 403) {
-        setError("Bu işlemi gerçekleştirmek için yetkiniz bulunmuyor.");
-        return;
-      }
-
-      setError("Beklenmeyen bir hata oluştu.");
+      setError(getSafeErrorMessage(response.status));
     } catch {
-      setError("API bağlantısı kurulamadı.");
+      setError("Etkinlik oluşturulamadı. Lütfen tekrar deneyin.");
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
@@ -109,14 +105,21 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
   return (
     <form className="event-form" onSubmit={handleSubmit}>
       {error && (
-        <div className="notice-panel" data-tone="critical">
+        <div className="notice-panel" data-tone="critical" role="alert">
           <p>{error}</p>
         </div>
       )}
 
       <div className="form-group">
         <label htmlFor="clubId">Kulüp</label>
-        <select id="clubId" name="clubId" defaultValue={initialClubId} required className="form-input">
+        <select
+          id="clubId"
+          name="clubId"
+          value={selectedClubId}
+          onChange={(e) => setSelectedClubId(e.target.value)}
+          required
+          className="form-input"
+        >
           {clubs.map((club) => (
             <option key={club.id} value={club.id}>
               {club.name}
@@ -127,7 +130,16 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
 
       <div className="form-group">
         <label htmlFor="title">Etkinlik Başlığı</label>
-        <input type="text" id="title" name="title" required className="form-input" placeholder="Etkinlik adını girin" />
+        <input
+          type="text"
+          id="title"
+          name="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          className="form-input"
+          placeholder="Etkinlik adını girin"
+        />
       </div>
 
       <div className="form-group">
@@ -135,6 +147,8 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
         <textarea
           id="description"
           name="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           required
           className="form-input"
           rows={5}
@@ -144,24 +158,58 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
 
       <div className="form-group">
         <label htmlFor="location">Konum</label>
-        <input type="text" id="location" name="location" required className="form-input" placeholder="Örn: Konferans Salonu" />
+        <input
+          type="text"
+          id="location"
+          name="location"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          required
+          className="form-input"
+          placeholder="Örn: Konferans Salonu"
+        />
       </div>
 
       <div className="form-group-row">
         <div className="form-group">
           <label htmlFor="startsAt">Başlangıç Zamanı</label>
-          <input type="datetime-local" id="startsAt" name="startsAt" required className="form-input" />
+          <input
+            type="datetime-local"
+            id="startsAt"
+            name="startsAt"
+            value={startsAtLocal}
+            onChange={(e) => setStartsAtLocal(e.target.value)}
+            required
+            className="form-input"
+          />
         </div>
 
         <div className="form-group">
           <label htmlFor="endsAt">Bitiş Zamanı</label>
-          <input type="datetime-local" id="endsAt" name="endsAt" required className="form-input" />
+          <input
+            type="datetime-local"
+            id="endsAt"
+            name="endsAt"
+            value={endsAtLocal}
+            onChange={(e) => setEndsAtLocal(e.target.value)}
+            required
+            className="form-input"
+          />
         </div>
       </div>
 
       <div className="form-group">
         <label htmlFor="capacity">Kapasite (İsteğe Bağlı)</label>
-        <input type="number" id="capacity" name="capacity" className="form-input" min={1} placeholder="Örn: 100" />
+        <input
+          type="number"
+          id="capacity"
+          name="capacity"
+          value={capacityRaw}
+          onChange={(e) => setCapacityRaw(e.target.value)}
+          className="form-input"
+          min={1}
+          placeholder="Örn: 100"
+        />
       </div>
 
       <div className="form-actions">

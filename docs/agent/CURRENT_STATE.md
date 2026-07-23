@@ -115,7 +115,7 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi ve kul�
 
 ## Bir Sonraki Onerilen Gorev
 
-Bir sonraki urun dikey ozelligi olarak `CHANGES_REQUESTED` event duzenleme ve yeniden submit, veya ayrintili katilimci listesi/CSV dis aktarim siniri gelistirilmeli.
+Bir sonraki urun dikey ozelligi olarak DRAFT etkinliği kulüp dashboard'u üzerinden onaya gönderme veya CHANGES_REQUESTED event duzenleme ve yeniden submit gelistirilmeli.
 
 Yeni agent once `AGENTS.md`, `docs/agent/HANDOFF.md` ve bu dosyayi okumali. Handoff belgesi Faz 1 kapsam, endpointler, veri modeli, yetki kurallari, test durumu, ortam kisitlari ve sonraki gorev siralamasini onceki sohbetlere ihtiyac birakmayacak sekilde ozetler.
 

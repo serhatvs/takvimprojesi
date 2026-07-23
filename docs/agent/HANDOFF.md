@@ -450,7 +450,9 @@ Test stratejisi:
 
 ## 15. Sonraki Onerilen Gorevler
 
-1. `CHANGES_REQUESTED` event duzenleme ve yeniden submit
+1. DRAFT etkinliği kulüp dashboard'u üzerinden onaya gönderme
+   - Kulüp yöneticisinin oluşturduğu taslak etkinliği onay sürecine sokabilmesi için dashboard üzerinden doğrudan onaya gönderme düğmesi/akışı eklenmelidir.
+2. `CHANGES_REQUESTED` event duzenleme ve yeniden submit
    - Basin Yayin'in degisiklik isteme karari su anda terminal gibi kaliyor; bu akisi tamamlamak onay surecini kullanilabilir hale getirir.
 2. Basin Yayin bekleyen etkinlikler paneli
    - `SUBMITTED` eventlerin UI uzerinden incelenmesi press editor deneyimini tamamlar.

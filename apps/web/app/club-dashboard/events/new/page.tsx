@@ -18,7 +18,7 @@ export default async function NewEventPage({
       <main className="page-shell">
         <div className="notice-panel" data-tone="critical">
           <h2>Hata</h2>
-          <p>{manageableClubsResult.message}</p>
+          <p>Yönetilebilir kulüp bilgisi alınamadı. Oturumunuzu kontrol edin.</p>
         </div>
       </main>
     );
@@ -44,7 +44,8 @@ export default async function NewEventPage({
     );
   }
 
-  const selectedClubId = resolvedParams.clubId || clubs[0]!.id;
+  const foundClub = resolvedParams.clubId ? clubs.find((c) => c.id === resolvedParams.clubId) : undefined;
+  const selectedClubId = foundClub ? foundClub.id : clubs[0]!.id;
 
   return (
     <main className="page-shell">
