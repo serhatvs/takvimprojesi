@@ -28,6 +28,8 @@ Faz 1'de gercek AGU SSO yoktur. Gelistirme ortaminda `ENABLE_DEV_AUTH=true` ve `
 
 Sistem rolleri coklu rol modeliyle tutulur. Kulup icindeki yetki `ClubMembership` uzerinden belirlenir. API endpointleri hem sistem rolunu hem ilgili kulup uyeligini dogrulamalidir. Auth altyapisinda `AuthenticationGuard`, `CurrentUser`, global role decorator/guard ve kulup uyeligi sorgulamalari icin `AuthorizationService` siniri bulunur; controller icinde authorization is mantigi tutulmaz.
 
+Taslak etkinlik olusturma kulup icinde `ADMIN` uyelik rolu gerektirir. `SYSTEM_ADMIN` operasyonel destek icin acik bir bypass'a sahiptir. `PRESS_EDITOR` Basin Yayin inceleme roludur; kulup uyeligi veya sistem adminligi olmadan kulup adina etkinlik olusturamaz.
+
 ## QR Katilim Yaklasimi
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.

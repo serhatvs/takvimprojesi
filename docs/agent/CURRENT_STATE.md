@@ -2,7 +2,7 @@
 
 ## Mevcut Asama
 
-Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri ve gelistirme auth siniri tamamlandi.
+Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri ve ilk korumali taslak etkinlik olusturma API'si tamamlandi.
 
 ## Tamamlanan Isler
 
@@ -29,6 +29,8 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 - Principal her korumali istekte veritabanindan kullanici rolleri ve aktif kulup uyelikleriyle yeniden cozulur.
 - Authentication guard, current user decorator, global role decorator/guard ve kulup uyeligi sorgulamalari icin authorization service siniri eklendi.
 - Web ana sayfasina yalnizca gelistirme ortaminda gorunen seed kullanicili minimal dev login kontrolu eklendi.
+- `POST /events` eklendi; authenticated kulup adminleri kendi aktif kulupleri icin `DRAFT` etkinlik olusturabilir.
+- Event olusturma yetkisi `AuthorizationService.canCreateEventForClub` uzerinden uygulanir; `SYSTEM_ADMIN` icin acik bypass vardir, `PRESS_EDITOR` kulup uyeligi olmadan kulup adina etkinlik olusturamaz.
 
 ## Calisan Komutlar
 
@@ -46,11 +48,12 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 - API smoke: `curl http://localhost:3001/health`
 - Web smoke: `curl http://localhost:3000/` API acik ve kapaliyken
 - Auth smoke: seed kullaniciyla `/auth/dev-login`, cookie ile `/auth/me`, `/auth/logout`, logout sonrasi `/auth/me` 401
+- Events smoke: club admin ile `/events` 201 `DRAFT`, student ile ayni istek 403
 
 ## Bilinen Eksikler
 
 - Gercek AGU SSO entegrasyonu yok; gelistirme auth siniri gelecekte SSO adapter'i ile degistirilmek uzere kuruldu.
-- Uygulama endpointleri health disinda henuz gelistirilmedi.
+- Uygulama endpointleri olarak health, auth ve taslak event olusturma vardir; listeleme, detay, guncelleme ve onaya gonderme yoktur.
 - Bildirim adapterleri placeholder mimari sinir olarak duruyor.
 - QR token uretme/dogrulama servisi henuz uygulanmadi.
 - Sistem Node'u hala `/usr/bin/node` uzerinden v26.4.0; proje dogrulamasi nvm altindaki Node v24.18.0 ile yapildi.
@@ -62,7 +65,7 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Monorepo kurulumu, Pris
 
 ## Bir Sonraki Onerilen Gorev
 
-Ilk urun dikey ozelligi olarak auth guard kullanilarak `POST /events` taslak etkinlik olusturma akisi gelistirilmeli.
+Bir sonraki urun dikey ozelligi olarak kulup admininin taslak etkinligi Basin Yayin onayina gondermesi (`DRAFT -> SUBMITTED`) gelistirilmeli.
 
 ## Son Dogrulama Sonuclari
 
@@ -75,8 +78,8 @@ Ilk urun dikey ozelligi olarak auth guard kullanilarak `POST /events` taslak etk
 - Seed: iki calisma da gecti; DB sayimlari `users=5`, `user_roles=8`, `clubs=1`, `draft_events=1`, `published_events=1`.
 - Lint: gecti, 5 package scope, 8 task.
 - Typecheck: gecti, 5 package scope, 8 task.
-- Unit tests: gecti; API 9 test, contracts 2 test. Config/ui/web test dosyasi olmadigi icin acik `--passWithNoTests`.
-- Integration tests: gecti; API 9 integration test. Diger paketlerde integration dosyasi olmadigi icin acik `--passWithNoTests`.
+- Unit tests: gecti; API 15 test, contracts 2 test. Config/ui/web test dosyasi olmadigi icin acik `--passWithNoTests`.
+- Integration tests: gecti; API 15 integration test. Diger paketlerde integration dosyasi olmadigi icin acik `--passWithNoTests`.
 - Build: gecti; 5 package, web `next build --webpack`.
-- API smoke: gecti, `/health` HTTP 200 ve auth akisi `dev-login -> me -> logout -> me 401`.
+- API smoke: gecti, `/health` HTTP 200, auth akisi `dev-login -> me -> logout -> me 401`, event akisi club admin ile 201 `DRAFT` ve student ile 403.
 - Web smoke: gecti; API acikken health sonucu ve gelistirme auth kontrolu render edildi.

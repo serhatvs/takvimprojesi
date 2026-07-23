@@ -12,6 +12,12 @@ import { PrismaModule } from "../prisma/prisma.module";
   imports: [JwtModule.register({}), PrismaModule],
   controllers: [AuthController],
   providers: [AuthService, AuthSessionService, AuthenticationGuard, GlobalRoleGuard, AuthorizationService],
-  exports: [AuthService, AuthenticationGuard, GlobalRoleGuard, AuthorizationService]
+  exports: [
+    AuthService,
+    AuthSessionService,
+    AuthenticationGuard,
+    GlobalRoleGuard,
+    AuthorizationService
+  ]
 })
 export class AuthModule {}

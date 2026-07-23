@@ -64,5 +64,30 @@ export interface EventSummary {
   clubName: string;
 }
 
+export interface CreateDraftEventRequest {
+  clubId: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity?: number;
+}
+
+export interface DraftEventResponse {
+  id: string;
+  clubId: string;
+  createdById: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+  status: "DRAFT";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

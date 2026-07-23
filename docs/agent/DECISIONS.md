@@ -42,3 +42,5 @@
   - Gerekce: Kullanici rolleri ve kulup uyelikleri token'a gomulmez; istemciden veya eski token payload'indan gelen sahte yetkiler dikkate alinmaz.
 - Dev-login yalnizca `NODE_ENV !== "production"` ve `ENABLE_DEV_AUTH=true` iken calisir.
   - Gerekce: Test hesapli giris siniri production'da yanlislikla kullanilabilir olmamalidir; gelecekte AGU SSO adapter'i auth modulunde bu sinirin yerini alacaktir.
+- Taslak etkinlik olusturma kulup ici `ClubMembership.role = ADMIN` yetkisi ister; `SYSTEM_ADMIN` icin acik bypass vardir.
+  - Gerekce: Kulup adina etkinlik olusturma kulup yetkisidir; `PRESS_EDITOR` Basin Yayin rolu oldugu icin otomatik kulup temsilcisi sayilmaz. Sistem yoneticisi operasyonel destek icin istisnadir.
