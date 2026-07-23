@@ -6,6 +6,8 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import type { Principal } from "../auth/principal";
 import { ClubsService } from "./clubs.service";
+import type { PrismaService } from "../prisma/prisma.service";
+import type { AuthorizationService } from "../auth/authorization.service";
 
 const clubAdmin: Principal = {
   userId: "club-admin-id",
@@ -38,7 +40,7 @@ function createService({
   clubEvents = [],
   clubEventsCount = 0,
   groupedStatuses = []
-}: any = {}) {
+}: { clubExists?: boolean; canManage?: boolean; manageableClubs?: unknown[]; clubEvents?: unknown[]; clubEventsCount?: number; groupedStatuses?: unknown[] } = {}) {
   const prisma = {
     club: {
       findFirst: vi.fn().mockResolvedValue(clubExists ? { id: "club-id", isActive: true } : null),
@@ -55,7 +57,7 @@ function createService({
     canManageClub: vi.fn().mockResolvedValue(canManage)
   };
 
-  const service = new ClubsService(prisma as any, authorizationService as any);
+  const service = new ClubsService(prisma as unknown as PrismaService, authorizationService as unknown as AuthorizationService);
 
   return { service, prisma, authorizationService };
 }

@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
+import { Prisma, EventStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthorizationService } from "../auth/authorization.service";
 import type { Principal } from "../auth/principal";
@@ -65,9 +65,18 @@ export class ClubsService {
       throw new ForbiddenException("You do not have permission to manage this club.");
     }
 
-    const page = Math.max(1, parseInt(query.page || "1", 10));
-    let pageSize = parseInt(query.pageSize || "20", 10);
-    if (isNaN(pageSize) || pageSize < 1) pageSize = 20;
+    const parsedPage = parseInt(query.page || "1", 10);
+    const parsedPageSize = parseInt(query.pageSize || "20", 10);
+    
+    if (isNaN(parsedPage) || parsedPage < 1) {
+      throw new BadRequestException("Invalid page.");
+    }
+    if (isNaN(parsedPageSize) || parsedPageSize < 1) {
+      throw new BadRequestException("Invalid page size.");
+    }
+    
+    const page = parsedPage;
+    let pageSize = parsedPageSize;
     if (pageSize > 100) pageSize = 100;
 
     const q = query.q?.trim();
@@ -76,10 +85,10 @@ export class ClubsService {
     const where: Prisma.EventWhereInput = { clubId };
 
     if (status) {
-      if (!EVENT_STATUSES.includes(status as any)) {
+      if (!EVENT_STATUSES.includes(status as EventStatus)) {
         throw new BadRequestException("Invalid event status.");
       }
-      where.status = status as any;
+      where.status = status as EventStatus;
     }
 
     if (q) {

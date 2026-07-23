@@ -389,8 +389,8 @@ Panel gorunurlukleri:
 
 Son dogrulanmis test sayilari:
 
-- API unit: 102
-- API integration: 90
+- API unit: 112
+- API integration: 117
 - Web unit: 68
 - Contracts unit: 2
 
@@ -434,7 +434,7 @@ Test stratejisi:
 ## 14. Henuz Yapilmayanlar
 
 - Gercek AGU SSO
-- Kulup ve Basin Yayin dashboard listeleri
+- Basin Yayin dashboard listesi
 - Event duzenleme
 - `CHANGES_REQUESTED` sonrasi duzenleme ve yeniden submit
 - Event cancel/complete lifecycle
@@ -450,15 +450,13 @@ Test stratejisi:
 
 ## 15. Sonraki Onerilen Gorevler
 
-1. Kulup dashboard'u ve kulubun kendi etkinlik listesi
-   - Kulup admininin olusturdugu/takip ettigi etkinlikleri tek yerde gormesi sonraki yonetim akislari icin temel olur.
-2. `CHANGES_REQUESTED` event duzenleme ve yeniden submit
+1. `CHANGES_REQUESTED` event duzenleme ve yeniden submit
    - Basin Yayin'in degisiklik isteme karari su anda terminal gibi kaliyor; bu akisi tamamlamak onay surecini kullanilabilir hale getirir.
-3. Basin Yayin bekleyen etkinlikler paneli
+2. Basin Yayin bekleyen etkinlikler paneli
    - `SUBMITTED` eventlerin UI uzerinden incelenmesi press editor deneyimini tamamlar.
-4. Event cancel/complete lifecycle
+3. Event cancel/complete lifecycle
    - Yayinlanmis etkinliklerin operasyonel kapanis ve iptal senaryolari icin gerekli lifecycle adimlaridir.
-5. Katilimci listesi ve export
+4. Katilimci listesi ve export
    - Attendance summary sonrasi kulup raporlama ihtiyaci icin ayrintili, kontrollu ve veri minimizasyonlu cikti gerekir.
 
 ## 16. Calisma Kurallari
