@@ -319,6 +319,17 @@ Toplam uygulanmis endpoint sayisi: 19.
   - Basari: `200`, event item listesi ve sayfalama verisi doner.
   - `401`: auth yok; `403`: yetki yok; `404`: kulup yok.
 
+### Press (Basın Yayın İnceleme)
+
+- `GET /press/events`
+  - Auth gerekir.
+  - Yetki: `PRESS_EDITOR` veya `SYSTEM_ADMIN`.
+  - İnceleme bekleyen `SUBMITTED` etkinliklerin listesini doner.
+  - Query: `q`, `page`, `pageSize`.
+  - Siralama: `updatedAt ASC`, `id ASC`.
+  - Basari: `200`, `items` ve `pagination` doner. Internal veriler sızdırılmaz.
+  - `401`: auth yok; `403`: yetki yok; `400`: gecersiz query.
+
 ## 8. Transaction ve Eszamanlilik Kararlari
 
 - Lifecycle gecisleri kosullu update kullanir: update sadece beklenen mevcut status ile eslesirse basarili olur.
@@ -389,9 +400,9 @@ Panel gorunurlukleri:
 
 Son dogrulanmis test sayilari:
 
-- API unit: 112
-- API integration: 117
-- Web unit: 110
+- API unit: 119
+- API integration: 125
+- Web unit: 120
 - Contracts unit: 2
 
 `packages/config` ve `packages/ui` icinde test dosyasi yoktur; mevcut scriptler `--passWithNoTests` ile acik sekilde bos gecer.
@@ -450,8 +461,8 @@ Test stratejisi:
 
 ## 15. Sonraki Onerilen Gorevler
 
-1. Basın Yayın için bekleyen etkinlikler inceleme dashboard'u
-   - `SUBMITTED` eventlerin UI uzerinden incelenmesi, onaylanmasi, reddedilmesi veya degisiklik istenmesi press editor deneyimini tamamlar.
+1. APPROVED etkinliği Basın Yayın panelinden yayınlama
+   - Onaylanmış `APPROVED` durumundaki etkinliklerin `/press-dashboard` üzerinden Basın Yayın editörleri veya sistem yöneticisi tarafından yayına alınması (`POST /events/:eventId/publish`) ve `publishedAt` alanının doldurulması.
 2. `CHANGES_REQUESTED` event duzenleme ve yeniden submit
    - Basın Yayın inceleme ekranından sonra degisiklik istenen etkinliklerin kulup tarafindan yeniden duzenlenmesi ele alinmalidir.
 3. Event cancel/complete lifecycle

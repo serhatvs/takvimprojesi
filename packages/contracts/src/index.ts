@@ -248,5 +248,36 @@ export interface ClubEventsQueryParams {
   status?: string;
 }
 
+// Press Dashboard Contracts
+export interface PressEventClub {
+  id: string;
+  name: string;
+}
+
+export interface PressEventListItem {
+  id: string;
+  title: string;
+  description: string;
+  status: "SUBMITTED";
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+  createdAt: string;
+  updatedAt: string;
+  club: PressEventClub;
+}
+
+export interface PressEventsResponse {
+  items: PressEventListItem[];
+  pagination: PaginationResponse;
+}
+
+export interface PressEventsQueryParams {
+  page?: string;
+  pageSize?: string;
+  q?: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

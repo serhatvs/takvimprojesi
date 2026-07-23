@@ -104,9 +104,17 @@ export function DevAuthPanel({ apiBaseUrl }: { apiBaseUrl: string }) {
         </button>
       </div>
       {state.user ? (
-        <StatusBadge tone="success">
-          {state.user.displayName} - {state.user.globalRoles.join(", ")}
-        </StatusBadge>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-2)", flexWrap: "wrap" }}>
+          <StatusBadge tone="success">
+            {state.user.displayName} - {state.user.globalRoles.join(", ")}
+          </StatusBadge>
+          {(state.user.globalRoles.includes("PRESS_EDITOR") ||
+            state.user.globalRoles.includes("SYSTEM_ADMIN")) && (
+            <a href="/press-dashboard" className="secondary-action">
+              Basın Yayın İnceleme Paneli
+            </a>
+          )}
+        </div>
       ) : null}
       {state.message ? <StatusBadge tone="warning">{state.message}</StatusBadge> : null}
     </section>
