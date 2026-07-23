@@ -3,11 +3,13 @@ import type {
   AttendanceResponse,
   AttendanceTokenResponse,
   DraftEventResponse,
+  EventAttendanceSummaryResponse,
   EventRegistrationResponse,
   EventResponse,
   PublicEventDetailResponse,
   PublicEventListItem
 } from "@agu/contracts";
+import type { AttendanceSummaryMetrics } from "./attendance-summary";
 
 export type PublicEventRecord = Pick<
   Event,
@@ -99,5 +101,24 @@ export function toAttendanceResponse(attendance: Attendance): AttendanceResponse
     eventId: attendance.eventId,
     userId: attendance.userId,
     checkedInAt: attendance.checkedInAt.toISOString()
+  };
+}
+
+export function toEventAttendanceSummaryResponse(input: {
+  event: Pick<Event, "id" | "title" | "status" | "startsAt" | "endsAt" | "capacity">;
+  metrics: AttendanceSummaryMetrics;
+  generatedAt: Date;
+}): EventAttendanceSummaryResponse {
+  return {
+    event: {
+      id: input.event.id,
+      title: input.event.title,
+      status: input.event.status,
+      startsAt: input.event.startsAt.toISOString(),
+      endsAt: input.event.endsAt.toISOString(),
+      capacity: input.event.capacity
+    },
+    metrics: input.metrics,
+    generatedAt: input.generatedAt.toISOString()
   };
 }

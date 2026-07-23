@@ -72,3 +72,5 @@
   - Gerekce: QR okuma algoritmasini elle yazmadan, browser kamera erisimi ve QR decode icin bakimi yapilan kucuk bir client-side kutuphane kullanilir. Kamera bileseni dinamik yuklenir ve izin yalniz kullanici aksiyonuyla istenir.
 - `/check-in` parser'i UUID varsayimi yapmadan surumlenmis QR payload'i dogrular.
   - Gerekce: Backend ID formatindan farkli frontend varsayimi eklenmez; token hata mesajlari, URL, storage veya DOM metni icine sizdirilmez.
+- Attendance summary `attendanceRate` degerini bir ondalik yuzde olarak dondurur.
+  - Gerekce: Kulup ozet ekranlari icin okunabilir hassasiyet yeterlidir; kayit yoksa bolme hatasini onlemek icin oran `0` kabul edilir.

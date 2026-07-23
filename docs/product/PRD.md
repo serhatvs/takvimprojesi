@@ -25,6 +25,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Kulup yoneticisinin etkinlik detay sayfasinda kisa omurlu QR katilim tokeni uretmesi, QR gorselini yenileyebilmesi ve kalan sureyi gorebilmesi.
 - Kayitli ogrencinin etkinlik gunu QR token ile tekil attendance kaydi olusturmasi.
 - Ogrencinin `/check-in` ekraninda kamera veya manuel QR payload yedegiyle yoklama vermesi.
+- Kulup yoneticisinin etkinlik bazinda kayit, yoklama, gelmeyen ve kapasite ozetini gormesi icin API temeli.
 - QR token ham degerini saklamadan katilim dogrulama mimarisi.
 - Audit log ve bildirim adaptoru icin baslangic sinirlari.
 
@@ -48,6 +49,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Kayitli ogrenci etkinlik gunu QR token ile yalnizca bir attendance kaydi olusturur.
 - Ogrenci kamera kullanarak veya kamera kullanilamiyorsa QR payload'ini manuel girerek yoklama verir.
 - Kulup yoneticisi etkinlik katilim sayilarini gorur.
+- Kulup yoneticisi kendi etkinligi icin katilim ozetini gorur.
 
 ## Basari Olcutleri
 
@@ -55,6 +57,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Gecersiz etkinlik durum gecisleri API servis katmaninda engellenir.
 - Yayinlanan etkinlikler merkezi takvim icin public liste ve detay verisi uretir, ana sayfada kartlar halinde gorunur ve detay sayfasinda incelenir.
 - Kayit ve attendance tekillik kurallari veritabani tarafinda korunur; etkinlik kapasitesi ve eszamanli attendance istekleri limitleri asmaz.
+- Katilim ozetleri ogrenci isim/e-posta bilgisi sizdirmeden toplam kayit, yoklama, gelmeyen, kalan kapasite ve oran metriklerini uretir.
 - Kritik durum degisiklikleri audit log ile geriye donuk incelenebilir.
 
 ## Varsayimlar

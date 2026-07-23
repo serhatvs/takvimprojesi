@@ -178,5 +178,24 @@ export interface AttendanceResponse {
   checkedInAt: string;
 }
 
+export interface EventAttendanceSummaryResponse {
+  event: {
+    id: string;
+    title: string;
+    status: EventStatus;
+    startsAt: string;
+    endsAt: string;
+    capacity: number | null;
+  };
+  metrics: {
+    registrationCount: number;
+    attendanceCount: number;
+    absentCount: number;
+    remainingCapacity: number | null;
+    attendanceRate: number;
+  };
+  generatedAt: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

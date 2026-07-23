@@ -34,6 +34,7 @@ describe("POST /events", () => {
   let studentCookie: string;
   let clubMemberCookie: string;
   let pressCookie: string;
+  let systemAdminCookie: string;
   let otherClubAdminCookie: string;
   let clubAdminId: string;
   let studentId: string;
@@ -156,6 +157,12 @@ describe("POST /events", () => {
     });
     pressEditorId = pressEditor.id;
 
+    const systemAdminLogin = await request(app.getHttpServer())
+      .post("/auth/dev-login")
+      .send({ email: "admin.dev@agu.edu.tr" })
+      .expect(201);
+    systemAdminCookie = getSessionCookie(systemAdminLogin.headers["set-cookie"]);
+
     const otherClubAdminLogin = await request(app.getHttpServer())
       .post("/auth/dev-login")
       .send({ email: "events.other.admin.dev@agu.edu.tr" })
@@ -193,7 +200,8 @@ describe("POST /events", () => {
             { slug: { startsWith: "integration-review-event" } },
             { slug: { startsWith: "integration-publish-event" } },
             { slug: { startsWith: "integration-public-event" } },
-            { slug: { startsWith: "integration-registration-event" } }
+            { slug: { startsWith: "integration-registration-event" } },
+            { slug: { startsWith: "integration-summary-event" } }
           ]
         },
         select: { id: true }
@@ -1469,6 +1477,164 @@ describe("POST /events", () => {
 
     expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
     expect(await prisma.attendance.count({ where: { eventId: event.id, userId: studentId } })).toBe(1);
+  });
+
+  it("returns 401 when reading attendance summary without authentication", async () => {
+    const event = await createPublicEvent("integration-summary-event-unauth", {
+      title: "Attendance Summary Unauth Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer()).get(`/events/${event.id}/attendance-summary`).expect(401);
+  });
+
+  it("returns attendance summary metrics for an authorized club admin", async () => {
+    const event = await createPublicEvent("integration-summary-event-success", {
+      title: "Attendance Summary Success Event",
+      status: "PUBLISHED",
+      capacity: 100
+    });
+    await prisma.eventRegistration.createMany({
+      data: [
+        { eventId: event.id, userId: studentId },
+        { eventId: event.id, userId: clubMemberId },
+        { eventId: event.id, userId: clubAdminId }
+      ]
+    });
+    await prisma.attendance.createMany({
+      data: [
+        { eventId: event.id, userId: studentId, source: "QR" },
+        { eventId: event.id, userId: clubMemberId, source: "QR" }
+      ]
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      event: {
+        id: event.id,
+        title: "Attendance Summary Success Event",
+        status: "PUBLISHED",
+        capacity: 100
+      },
+      metrics: {
+        registrationCount: 3,
+        attendanceCount: 2,
+        absentCount: 1,
+        remainingCapacity: 97,
+        attendanceRate: 66.7
+      },
+      generatedAt: expect.any(String)
+    });
+    expect(response.body.event.startsAt).toEqual(expect.any(String));
+    expect(response.body.event.endsAt).toEqual(expect.any(String));
+    expect(JSON.stringify(response.body)).not.toContain(studentId);
+    expect(JSON.stringify(response.body)).not.toContain("student.dev@agu.edu.tr");
+    expect(JSON.stringify(response.body)).not.toContain("token");
+    expect(response.body).not.toHaveProperty("registrations");
+    expect(response.body).not.toHaveProperty("attendances");
+  });
+
+  it("returns 403 for another club admin, student, and press editor attendance summary access", async () => {
+    const event = await createPublicEvent("integration-summary-event-forbidden", {
+      title: "Attendance Summary Forbidden Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary`)
+      .set("Cookie", otherClubAdminCookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary`)
+      .set("Cookie", studentCookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary`)
+      .set("Cookie", pressCookie)
+      .expect(403);
+  });
+
+  it("allows a system admin to view attendance summary", async () => {
+    const event = await createPublicEvent("integration-summary-event-system-admin", {
+      title: "Attendance Summary System Admin Event",
+      status: "PUBLISHED"
+    });
+
+    await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary`)
+      .set("Cookie", systemAdminCookie)
+      .expect(200);
+  });
+
+  it("returns 404 for unknown attendance summary event and 400 for invalid id", async () => {
+    await request(app.getHttpServer())
+      .get("/events/00000000-0000-4000-8000-000000000000/attendance-summary")
+      .set("Cookie", clubAdminCookie)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get("/events/not-a-valid-id/attendance-summary")
+      .set("Cookie", clubAdminCookie)
+      .expect(400);
+  });
+
+  it("returns 409 for draft or submitted attendance summary events", async () => {
+    const draft = await createPublicEvent("integration-summary-event-draft", {
+      title: "Attendance Summary Draft Event",
+      status: "DRAFT"
+    });
+    const submitted = await createPublicEvent("integration-summary-event-submitted", {
+      title: "Attendance Summary Submitted Event",
+      status: "SUBMITTED"
+    });
+
+    await request(app.getHttpServer())
+      .get(`/events/${draft.id}/attendance-summary`)
+      .set("Cookie", clubAdminCookie)
+      .expect(409);
+    await request(app.getHttpServer())
+      .get(`/events/${submitted.id}/attendance-summary`)
+      .set("Cookie", clubAdminCookie)
+      .expect(409);
+  });
+
+  it("returns zero metrics for an event without registrations", async () => {
+    const event = await createPublicEvent("integration-summary-event-empty", {
+      title: "Attendance Summary Empty Event",
+      status: "PUBLISHED",
+      capacity: 20
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    expect(response.body.metrics).toEqual({
+      registrationCount: 0,
+      attendanceCount: 0,
+      absentCount: 0,
+      remainingCapacity: 20,
+      attendanceRate: 0
+    });
+  });
+
+  it("returns null remaining capacity for unlimited attendance summary events", async () => {
+    const event = await createPublicEvent("integration-summary-event-unlimited", {
+      title: "Attendance Summary Unlimited Event",
+      status: "PUBLISHED",
+      capacity: null
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    expect(response.body.metrics.remainingCapacity).toBeNull();
   });
 
   it("keeps existing submit, review, and publish routes working alongside public detail", async () => {

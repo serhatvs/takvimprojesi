@@ -6,6 +6,7 @@ import type { Principal } from "./principal";
 const EVENT_CREATOR_CLUB_ROLES: ClubMembershipRole[] = ["ADMIN"];
 const EVENT_SUBMITTER_CLUB_ROLES: ClubMembershipRole[] = ["ADMIN"];
 const ATTENDANCE_TOKEN_ISSUER_CLUB_ROLES: ClubMembershipRole[] = ["ADMIN"];
+const ATTENDANCE_SUMMARY_VIEWER_CLUB_ROLES: ClubMembershipRole[] = ["ADMIN"];
 
 @Injectable()
 export class AuthorizationService {
@@ -65,5 +66,13 @@ export class AuthorizationService {
     }
 
     return this.hasActiveClubRole(principal.userId, clubId, ATTENDANCE_TOKEN_ISSUER_CLUB_ROLES);
+  }
+
+  async canViewAttendanceSummaryForClub(principal: Principal, clubId: string): Promise<boolean> {
+    if (principal.globalRoles.includes("SYSTEM_ADMIN")) {
+      return true;
+    }
+
+    return this.hasActiveClubRole(principal.userId, clubId, ATTENDANCE_SUMMARY_VIEWER_CLUB_ROLES);
   }
 }

@@ -9,6 +9,7 @@ import {
   toAttendanceResponse,
   toAttendanceTokenResponse,
   toDraftEventResponse,
+  toEventAttendanceSummaryResponse,
   toEventResponse,
   toEventRegistrationResponse,
   toPublicEventDetailResponse,
@@ -46,6 +47,16 @@ export class EventsController {
       registered: registration !== null,
       registration: registration ? toEventRegistrationResponse(registration) : null
     };
+  }
+
+  @Get(":eventId/attendance-summary")
+  @UseGuards(AuthenticationGuard)
+  async getAttendanceSummary(
+    @CurrentUser() principal: Principal,
+    @Param("eventId") eventId: string
+  ) {
+    const summary = await this.eventsService.getAttendanceSummary(principal, eventId);
+    return toEventAttendanceSummaryResponse(summary);
   }
 
   @Post()

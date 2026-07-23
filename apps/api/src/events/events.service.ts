@@ -15,6 +15,10 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import { AuthorizationService } from "../auth/authorization.service";
 import type { Principal } from "../auth/principal";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  ATTENDANCE_SUMMARY_EVENT_STATUSES,
+  calculateAttendanceSummaryMetrics
+} from "./attendance-summary";
 import type { CreateDraftEventDto, ValidCreateDraftEventInput } from "./dto/create-draft-event.dto";
 import type { PublicEventsQueryDto } from "./dto/public-events-query.dto";
 import { EventLifecycleService } from "./event-lifecycle.service";
@@ -584,6 +588,61 @@ export class EventsService {
 
       throw error;
     }
+  }
+
+  async getAttendanceSummary(principal: Principal, eventId: string) {
+    this.assertValidEventId(eventId);
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        title: true,
+        status: true,
+        startsAt: true,
+        endsAt: true,
+        capacity: true
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    const canView = await this.authorizationService.canViewAttendanceSummaryForClub(
+      principal,
+      event.clubId
+    );
+    if (!canView) {
+      throw new ForbiddenException("You are not allowed to view attendance summary.");
+    }
+
+    if (!ATTENDANCE_SUMMARY_EVENT_STATUSES.includes(event.status)) {
+      throw new ConflictException("Attendance summary is not available for this event status.");
+    }
+
+    const [registrationCount, attendanceCount] = await this.prisma.$transaction([
+      this.prisma.eventRegistration.count({
+        where: {
+          eventId,
+          cancelledAt: null
+        }
+      }),
+      this.prisma.attendance.count({
+        where: { eventId }
+      })
+    ]);
+
+    return {
+      event,
+      metrics: calculateAttendanceSummaryMetrics({
+        registrationCount,
+        attendanceCount,
+        capacity: event.capacity
+      }),
+      generatedAt: new Date()
+    };
   }
 
   private validateCreateDraftEvent(dto: CreateDraftEventDto): ValidCreateDraftEventInput {

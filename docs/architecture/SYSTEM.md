@@ -52,6 +52,8 @@ Kayit yalnizca `PUBLISHED` ve henuz baslamamis etkinlikler icin aciktir. Public 
 
 Kullanicinin kendi kayit durumu `GET /events/:eventId/registration` ile okunur. Endpoint authentication ve `STUDENT` rolunu gerektirir; yalniz principal `userId` icin `EventRegistration` kaydini dondurur. Baska ogrencilerin kayit bilgisi, kapasite sayisi veya katilimci listesi response'a eklenmez. Web detay sayfasindaki kayit paneli once `/auth/me` ile oturumu cozer, ardindan bu status endpointini kullanir.
 
+Etkinlik katilim ozeti `GET /events/:eventId/attendance-summary` ile okunur ve authentication gerektirir. Yalniz etkinligin kulubundeki aktif `ADMIN` uyeligine sahip kullanici veya `SYSTEM_ADMIN` erisebilir; `STUDENT`, normal kulup uyesi, `PRESS_EDITOR` ve baska kulup admini `403` alir. Kulup yoneticisi kendi kulubundeki etkinligi status fark etmeksizin bulabilir, ancak ozet yalniz `PUBLISHED`, `COMPLETED` ve `CANCELLED` durumlarinda doner; diger statuslar `409 Conflict` doner.
+
 ## QR Katilim Yaklasimi
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.
@@ -65,6 +67,8 @@ Token uretimi `EVENT_ATTENDANCE_TOKEN_ISSUED` audit action'i ile kaydedilir. Aud
 Web QR paneli QR icerigini surumlenmis JSON payload olarak uretir: `version=1`, `eventId` ve ham `token`. Ham token metin olarak render edilmez; QR alt/aciklama metnine veya loglara yazilmaz. Kalan sure client tarafinda canli guncellenir; sure dolunca QR gizlenir, token state'i temizlenir ve kullanici yeni token uretmeye yonlendirilir.
 
 Ogrenci yoklama ekrani `/check-in` route'u ile sunulur. Kamera tarayici yalniz client tarafinda, kullanici `Kamerayı Başlat` dugmesine bastiktan sonra dinamik yuklenir; server render sirasinda kamera izni istenmez. Sayfa once `/auth/me` ile principal bilgisini alir, `STUDENT` rolu yoksa tarayiciyi baslatmaz. QR payload parser'i yalniz surum `1`, bos olmayan `eventId` ve bos olmayan `token` kabul eder; UUID gibi backend'den farkli ID varsayimi eklemez. Gecerli payload, `POST /events/:eventId/check-in` istegine yalniz token body'de gonderilerek kullanilir.
+
+Attendance summary sayimlari kisa read transaction icinde `EventRegistration.count` ve `Attendance.count` ile yapilir; katilimci listesi bellekte yuklenmez. `absentCount = max(registrationCount - attendanceCount, 0)`, `remainingCapacity = null` sinirsiz kapasite icin, aksi halde negatif olmayacak sekilde hesaplanir. `attendanceRate` kayit yoksa `0`, aksi halde bir ondalik hassasiyetle yuzde olarak doner.
 
 ## Bildirim Adaptoru Yaklasimi
 
@@ -95,6 +99,8 @@ Web public etkinlik kartlari da yalniz public response alanlarini render eder: b
 Detay sayfasindaki QR yoklama paneli yetkili olmayan kullanicilara render edilmez. Yetkili kullanicida ham token sadece buton tiklamasindan sonra client bellekte bulunur; statik HTML, metadata, URL, storage, hata mesaji veya accessibility label icine yazilmaz.
 
 Ogrenci check-in ekrani da tokeni URL, storage, log, hata mesaji veya DOM metni olarak render etmez. Kamera stream'i component kapanisinda ve basarili tarama sonrasinda durdurulur. Kamera kullanilamayan durumlarda manuel yedek alan yalniz tam QR JSON payload'ini kabul eder; gonderimden sonra alan temizlenir.
+
+Attendance summary response'u yalniz event kimligi/basligi/status/tarih/kapasite ve toplam metrikleri dondurur. Ogrenci adi, e-posta, userId, QR token/hash, audit, review veya katilimci listesi response'a eklenmez.
 
 Public detail sayfasi metadata title degerini etkinlik basligindan, description degerini etkinlik aciklamasinin normalize edilmis ve kisaltilmis ozetinden uretir. Metadata icinde internal alan, kullanici bilgisi veya gizli veri bulunmaz. Ayni request yasam dongusunde metadata ve sayfa verisi icin `cache()` ile tekrar azaltimi uygulanir.
 

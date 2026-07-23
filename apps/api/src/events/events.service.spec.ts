@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import type { Principal } from "../auth/principal";
+import { calculateAttendanceSummaryMetrics } from "./attendance-summary";
 import { toPublicEventListItem, type PublicEventRecord } from "./event-response";
 import { EventsService } from "./events.service";
 
@@ -71,6 +72,7 @@ type CreateServiceOptions = {
   canReview?: boolean;
   canPublish?: boolean;
   canIssueAttendanceToken?: boolean;
+  canViewAttendanceSummary?: boolean;
   clubExists?: boolean;
   existingStatus?: string;
   updateCount?: number;
@@ -98,6 +100,12 @@ type CreateServiceOptions = {
   } | null;
   attendanceRegistered?: boolean;
   attendanceCreateFailsUnique?: boolean;
+  attendanceSummaryEvent?: {
+    status?: string;
+    capacity?: number | null;
+  } | null;
+  attendanceSummaryRegistrationCount?: number;
+  attendanceSummaryAttendanceCount?: number;
 };
 
 function createService({
@@ -106,6 +114,7 @@ function createService({
   canReview = true,
   canPublish = true,
   canIssueAttendanceToken = true,
+  canViewAttendanceSummary = true,
   clubExists = true,
   existingStatus = "DRAFT",
   updateCount = 1,
@@ -132,7 +141,13 @@ function createService({
     qrTokenExpiresAt: new Date(Date.now() + 10 * 60 * 1000)
   },
   attendanceRegistered = true,
-  attendanceCreateFailsUnique = false
+  attendanceCreateFailsUnique = false,
+  attendanceSummaryEvent = {
+    status: "PUBLISHED",
+    capacity: 100
+  },
+  attendanceSummaryRegistrationCount = 80,
+  attendanceSummaryAttendanceCount = 62
 }: CreateServiceOptions = {}) {
   const createdEvent = {
     id: "event-id",
@@ -170,11 +185,32 @@ function createService({
       findFirst: vi.fn().mockResolvedValue(clubExists ? { id: "club-id" } : null)
     },
     event: {
-      findUnique: vi.fn().mockResolvedValue({
-        id: "event-id",
-        clubId: "club-id",
-        status: existingStatus,
-        createdById: "club-admin-id"
+      findUnique: vi.fn().mockImplementation((args) => {
+        if (args?.select?.title) {
+          return Promise.resolve(
+            attendanceSummaryEvent
+              ? {
+                  id: "event-id",
+                  clubId: "club-id",
+                  title: "Summary Event",
+                  status: attendanceSummaryEvent.status ?? "PUBLISHED",
+                  startsAt: new Date("2026-08-10T11:00:00.000Z"),
+                  endsAt: new Date("2026-08-10T13:00:00.000Z"),
+                  capacity:
+                    attendanceSummaryEvent.capacity === undefined
+                      ? 100
+                      : attendanceSummaryEvent.capacity
+                }
+              : null
+          );
+        }
+
+        return Promise.resolve({
+          id: "event-id",
+          clubId: "club-id",
+          status: existingStatus,
+          createdById: "club-admin-id"
+        });
       }),
       findFirst: vi.fn().mockImplementation((args) => {
         if (args?.select?.club) {
@@ -197,9 +233,17 @@ function createService({
               registeredAt: new Date("2026-07-23T12:00:00.000Z")
             }
           : null
-      )
+      ),
+      count: vi.fn().mockResolvedValue(attendanceSummaryRegistrationCount)
     },
-    $transaction: vi.fn(async (callback) => {
+    attendance: {
+      count: vi.fn().mockResolvedValue(attendanceSummaryAttendanceCount)
+    },
+    $transaction: vi.fn(async (input) => {
+      if (Array.isArray(input)) {
+        return Promise.all(input);
+      }
+
       const transaction = {
         $queryRaw: vi.fn().mockResolvedValue([{ id: "event-id" }]),
         event: {
@@ -281,7 +325,7 @@ function createService({
         }
       };
 
-      return callback(transaction);
+      return input(transaction);
     })
   };
   const authorization = {
@@ -289,7 +333,8 @@ function createService({
     canSubmitEventForClub: vi.fn().mockResolvedValue(canSubmit),
     canReviewEvents: vi.fn().mockReturnValue(canReview),
     canPublishEvents: vi.fn().mockReturnValue(canPublish),
-    canIssueAttendanceTokenForClub: vi.fn().mockResolvedValue(canIssueAttendanceToken)
+    canIssueAttendanceTokenForClub: vi.fn().mockResolvedValue(canIssueAttendanceToken),
+    canViewAttendanceSummaryForClub: vi.fn().mockResolvedValue(canViewAttendanceSummary)
   };
   const lifecycle = {
     assertTransitionAllowed: vi.fn((from: string, to: string) => {
@@ -615,6 +660,132 @@ describe("EventsService", () => {
 
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+  });
+
+  it("allows a club admin to view their event attendance summary", async () => {
+    const { service, authorization } = createService();
+
+    const summary = await service.getAttendanceSummary(
+      clubAdmin,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(authorization.canViewAttendanceSummaryForClub).toHaveBeenCalledWith(
+      clubAdmin,
+      "club-id"
+    );
+    expect(summary.metrics).toEqual({
+      registrationCount: 80,
+      attendanceCount: 62,
+      absentCount: 18,
+      remainingCapacity: 20,
+      attendanceRate: 77.5
+    });
+  });
+
+  it("does not allow another club admin to view attendance summary", async () => {
+    const { service } = createService({ canViewAttendanceSummary: false });
+
+    await expect(
+      service.getAttendanceSummary(clubAdmin, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("does not allow a press editor to view attendance summary", async () => {
+    const { service } = createService({ canViewAttendanceSummary: false });
+
+    await expect(
+      service.getAttendanceSummary(pressEditor, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("allows a system admin to view attendance summary", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.getAttendanceSummary(systemAdmin, "11111111-1111-4111-8111-111111111111")
+    ).resolves.toMatchObject({
+      event: {
+        id: "event-id",
+        title: "Summary Event"
+      }
+    });
+  });
+
+  it("calculates attendance summary metrics", () => {
+    expect(
+      calculateAttendanceSummaryMetrics({
+        registrationCount: 3,
+        attendanceCount: 2,
+        capacity: 10
+      })
+    ).toEqual({
+      registrationCount: 3,
+      attendanceCount: 2,
+      absentCount: 1,
+      remainingCapacity: 7,
+      attendanceRate: 66.7
+    });
+  });
+
+  it("keeps absent count and remaining capacity non-negative", () => {
+    expect(
+      calculateAttendanceSummaryMetrics({
+        registrationCount: 2,
+        attendanceCount: 5,
+        capacity: 1
+      })
+    ).toMatchObject({
+      absentCount: 0,
+      remainingCapacity: 0
+    });
+  });
+
+  it("returns zero attendance rate when there are no registrations", () => {
+    expect(
+      calculateAttendanceSummaryMetrics({
+        registrationCount: 0,
+        attendanceCount: 0,
+        capacity: 10
+      }).attendanceRate
+    ).toBe(0);
+  });
+
+  it("returns null remaining capacity for unlimited events", () => {
+    expect(
+      calculateAttendanceSummaryMetrics({
+        registrationCount: 10,
+        attendanceCount: 8,
+        capacity: null
+      }).remainingCapacity
+    ).toBeNull();
+  });
+
+  it("rejects attendance summary for unsupported event statuses", async () => {
+    const { service } = createService({
+      attendanceSummaryEvent: {
+        status: "SUBMITTED",
+        capacity: 100
+      }
+    });
+
+    await expect(
+      service.getAttendanceSummary(clubAdmin, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("does not expose student or internal data in attendance summary", async () => {
+    const { service } = createService();
+
+    const summary = await service.getAttendanceSummary(
+      clubAdmin,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(JSON.stringify(summary)).not.toContain("email");
+    expect(JSON.stringify(summary)).not.toContain("qrToken");
+    expect(JSON.stringify(summary)).not.toContain("registration-id");
+    expect(JSON.stringify(summary)).not.toContain(student.userId);
   });
 
   it("returns only the authenticated student's registration status", async () => {
