@@ -391,7 +391,7 @@ Son dogrulanmis test sayilari:
 
 - API unit: 112
 - API integration: 117
-- Web unit: 68
+- Web unit: 110
 - Contracts unit: 2
 
 `packages/config` ve `packages/ui` icinde test dosyasi yoktur; mevcut scriptler `--passWithNoTests` ile acik sekilde bos gecer.
@@ -450,12 +450,10 @@ Test stratejisi:
 
 ## 15. Sonraki Onerilen Gorevler
 
-1. DRAFT etkinliği kulüp dashboard'u üzerinden onaya gönderme
-   - Kulüp yöneticisinin oluşturduğu taslak etkinliği onay sürecine sokabilmesi için dashboard üzerinden doğrudan onaya gönderme düğmesi/akışı eklenmelidir.
+1. Basın Yayın için bekleyen etkinlikler inceleme dashboard'u
+   - `SUBMITTED` eventlerin UI uzerinden incelenmesi, onaylanmasi, reddedilmesi veya degisiklik istenmesi press editor deneyimini tamamlar.
 2. `CHANGES_REQUESTED` event duzenleme ve yeniden submit
-   - Basin Yayin'in degisiklik isteme karari su anda terminal gibi kaliyor; bu akisi tamamlamak onay surecini kullanilabilir hale getirir.
-2. Basin Yayin bekleyen etkinlikler paneli
-   - `SUBMITTED` eventlerin UI uzerinden incelenmesi press editor deneyimini tamamlar.
+   - Basın Yayın inceleme ekranından sonra degisiklik istenen etkinliklerin kulup tarafindan yeniden duzenlenmesi ele alinmalidir.
 3. Event cancel/complete lifecycle
    - Yayinlanmis etkinliklerin operasyonel kapanis ve iptal senaryolari icin gerekli lifecycle adimlaridir.
 4. Katilimci listesi ve export

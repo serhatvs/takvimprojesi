@@ -10,6 +10,7 @@ import {
   toClubEventCardViewModel,
   type RawSearchParams
 } from "./club-dashboard";
+import { SubmitEventControl } from "./submit-event-control";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,15 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
                   {vm.capacityLabel && <p><strong>Kapasite:</strong> {vm.capacityLabel}</p>}
                   <p><strong>Son Güncelleme:</strong> {vm.updatedAt}</p>
                 </div>
+                {item.status === "DRAFT" && (
+                  <div className="event-card-actions" style={{ marginTop: "var(--spacing-3)" }}>
+                    <SubmitEventControl
+                      eventId={item.id}
+                      eventTitle={item.title}
+                      status={item.status}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
