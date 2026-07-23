@@ -13,6 +13,7 @@ export function toEventResponse(event: Event): EventResponse {
     location: event.location,
     capacity: event.capacity,
     status: event.status,
+    publishedAt: event.publishedAt?.toISOString() ?? null,
     createdAt: event.createdAt.toISOString(),
     updatedAt: event.updatedAt.toISOString()
   };

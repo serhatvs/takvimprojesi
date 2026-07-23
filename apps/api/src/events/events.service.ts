@@ -209,6 +209,74 @@ export class EventsService {
     });
   }
 
+  async publishEvent(principal: Principal, eventId: string) {
+    this.assertValidEventId(eventId);
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        status: true,
+        createdById: true
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    if (!this.authorizationService.canPublishEvents(principal)) {
+      throw new ForbiddenException("You are not allowed to publish events.");
+    }
+
+    const lifecycleRoles = principal.globalRoles.includes("SYSTEM_ADMIN")
+      ? ["SYSTEM_ADMIN" as const]
+      : ["PRESS_EDITOR" as const];
+
+    try {
+      this.eventLifecycleService.assertTransitionAllowed(event.status, "PUBLISHED", lifecycleRoles);
+    } catch {
+      throw new ConflictException("Only approved events can be published.");
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const publishedAt = new Date();
+      const updateResult = await transaction.event.updateMany({
+        where: {
+          id: eventId,
+          status: "APPROVED"
+        },
+        data: {
+          status: "PUBLISHED",
+          publishedAt
+        }
+      });
+
+      if (updateResult.count !== 1) {
+        throw new ConflictException("Only approved events can be published.");
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          actorId: principal.userId,
+          entityType: "Event",
+          entityId: eventId,
+          action: "EVENT_PUBLISHED",
+          before: { status: "APPROVED" },
+          after: { status: "PUBLISHED" },
+          metadata: {
+            publishedAt: publishedAt.toISOString()
+          }
+        }
+      });
+
+      return transaction.event.findUniqueOrThrow({
+        where: { id: eventId }
+      });
+    });
+  }
+
   private validateCreateDraftEvent(dto: CreateDraftEventDto): ValidCreateDraftEventInput {
     const clubId = this.requiredString(dto.clubId, "clubId");
     const title = this.requiredString(dto.title, "title");

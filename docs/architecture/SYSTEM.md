@@ -34,6 +34,8 @@ Taslak etkinligi onaya gonderme yalnizca `DRAFT -> SUBMITTED` gecisini kapsar. G
 
 Basin Yayin inceleme islemleri yalnizca `PRESS_EDITOR` veya `SYSTEM_ADMIN` tarafindan yapilabilir. `SUBMITTED -> CHANGES_REQUESTED`, `SUBMITTED -> REJECTED` ve `SUBMITTED -> APPROVED` gecisleri `EventLifecycleService` ile dogrulanir; kulup admini kendi etkinligini bu rol nedeniyle inceleyemez. Her karar status kosullu update, `EventReview` create ve audit create adimlarini tek transaction icinde yapar; ikinci veya yarisan karar `409 Conflict` doner.
 
+Yayinlama islemi yalnizca `PRESS_EDITOR` veya `SYSTEM_ADMIN` tarafindan `APPROVED -> PUBLISHED` gecisi icin yapilir. Event status kosullu olarak yalnizca mevcut durum `APPROVED` iken guncellenir, mevcut `publishedAt` alani UTC islem zamaniyla doldurulur ve audit kaydi ayni transaction icinde olusturulur. Tekrarli veya eszamanli ikinci publish `409 Conflict` doner.
+
 ## QR Katilim Yaklasimi
 
 QR tokenin ham hali veritabaninda zorunlu olarak saklanmaz. Uygulama, kisa omurlu token veya hashlenmis dogrulama degeriyle attendance olusturur. `Attendance` modelindeki `@@unique([eventId, userId])` ayni etkinlik icin ikinci katilimi engeller.
@@ -49,6 +51,8 @@ Durum degisiklikleri ve kritik operasyonlar `AuditLog` ile izlenir. Log kaydi ac
 `DRAFT -> SUBMITTED` submit isleminde audit action `EVENT_SUBMITTED`, entity `Event`, onceki status `DRAFT`, yeni status `SUBMITTED` ve actor kullanici kimligi tutulur. Cookie, token veya secret audit metadata'sina yazilmaz.
 
 Basin Yayin kararlari icin audit action degerleri `EVENT_CHANGES_REQUESTED`, `EVENT_REJECTED` ve `EVENT_APPROVED` olarak tutulur. Audit metadata karar bilgisini tasir; yorum `EventReview` icinde saklanir ve token, cookie veya secret audit/review kayitlarina yazilmaz.
+
+Publish islemi icin audit action `EVENT_PUBLISHED` olarak tutulur. Audit kaydi onceki status `APPROVED`, yeni status `PUBLISHED`, actor ve publish zamanini metadata icinde tasir; cookie, token veya secret saklanmaz.
 
 ## Guvenlik ve Kisisel Veri Minimizasyonu
 

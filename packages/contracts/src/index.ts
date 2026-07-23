@@ -100,6 +100,7 @@ export interface EventResponse {
   location: string;
   capacity: number | null;
   status: EventStatus;
+  publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

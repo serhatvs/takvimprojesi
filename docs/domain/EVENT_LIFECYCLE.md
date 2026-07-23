@@ -37,4 +37,6 @@
 - Event status guncellemesi ve `AuditLog` kaydi ayni transaction icinde kalici hale getirilir.
 - `SUBMITTED -> CHANGES_REQUESTED|REJECTED|APPROVED` Basin Yayin inceleme gecisleri yalnizca mevcut durum `SUBMITTED` ise yapilir; tekrarli veya eszamanli ikinci karar `409 Conflict` doner.
 - Basin Yayin kararlari `EventReview` icinde karar veren kullanici, karar ve aciklama ile saklanir; event status guncellemesi, review ve audit kaydi ayni transaction icinde kalici hale getirilir.
+- `APPROVED -> PUBLISHED` yalnizca mevcut durum `APPROVED` ise yapilir; tekrarli veya eszamanli ikinci publish `409 Conflict` doner.
+- Publish isleminde `publishedAt` UTC zaman damgasi doldurulur; event status guncellemesi ve `AuditLog` kaydi ayni transaction icinde kalici hale getirilir.
 - Kulup yetkisi icin sistem rolunun yaninda ilgili kulupte aktif `ClubMembership` kontrolu gerekir.

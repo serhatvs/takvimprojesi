@@ -53,4 +53,8 @@ export class AuthorizationService {
       principal.globalRoles.includes("SYSTEM_ADMIN")
     );
   }
+
+  canPublishEvents(principal: Principal): boolean {
+    return this.canReviewEvents(principal);
+  }
 }

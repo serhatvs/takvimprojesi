@@ -180,7 +180,8 @@ describe("POST /events", () => {
         where: {
           OR: [
             { slug: { startsWith: "integration-submit-event" } },
-            { slug: { startsWith: "integration-review-event" } }
+            { slug: { startsWith: "integration-review-event" } },
+            { slug: { startsWith: "integration-publish-event" } }
           ]
         },
         select: { id: true }
@@ -609,6 +610,148 @@ describe("POST /events", () => {
     expect(await prisma.eventReview.count({ where: { eventId: event.id } })).toBe(1);
   });
 
+  it("returns 401 when publishing without authentication", async () => {
+    const event = await createApprovedEvent("integration-publish-event-unauth");
+
+    await request(app.getHttpServer()).post(`/events/${event.id}/publish`).expect(401);
+  });
+
+  it("publishes an approved event for a press editor and writes audit", async () => {
+    const event = await createApprovedEvent("integration-publish-event-success");
+
+    const response = await request(app.getHttpServer())
+      .post(`/events/${event.id}/publish`)
+      .set("Cookie", pressCookie)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: event.id,
+      clubId,
+      createdById: clubAdminId,
+      status: "PUBLISHED"
+    });
+    expect(response.body.publishedAt).toEqual(expect.any(String));
+
+    const storedEvent = await prisma.event.findUniqueOrThrow({
+      where: { id: event.id }
+    });
+    expect(storedEvent.status).toBe("PUBLISHED");
+    expect(storedEvent.publishedAt).toBeInstanceOf(Date);
+    expect(storedEvent.createdById).toBe(clubAdminId);
+    expect(storedEvent.clubId).toBe(clubId);
+
+    const audits = await prisma.auditLog.findMany({
+      where: {
+        entityType: "Event",
+        entityId: event.id,
+        action: "EVENT_PUBLISHED"
+      }
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      actorId: pressEditorId,
+      before: { status: "APPROVED" },
+      after: { status: "PUBLISHED" }
+    });
+  });
+
+  it("returns 403 for a club admin publishing their own event", async () => {
+    const event = await createApprovedEvent("integration-publish-event-club-admin");
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/publish`)
+      .set("Cookie", clubAdminCookie)
+      .expect(403);
+  });
+
+  it("returns 404 for publishing an unknown event", async () => {
+    await request(app.getHttpServer())
+      .post("/events/00000000-0000-4000-8000-000000000000/publish")
+      .set("Cookie", pressCookie)
+      .expect(404);
+  });
+
+  it("returns 400 for an invalid publish event id", async () => {
+    await request(app.getHttpServer())
+      .post("/events/not-a-valid-id/publish")
+      .set("Cookie", pressCookie)
+      .expect(400);
+  });
+
+  it("returns 409 when publishing a submitted event", async () => {
+    const event = await createSubmittedEvent("integration-publish-event-submitted");
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/publish`)
+      .set("Cookie", pressCookie)
+      .expect(409);
+  });
+
+  it("returns 409 for a second publish and writes only one audit", async () => {
+    const event = await createApprovedEvent("integration-publish-event-repeat");
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/publish`)
+      .set("Cookie", pressCookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/publish`)
+      .set("Cookie", pressCookie)
+      .expect(409);
+
+    const auditCount = await prisma.auditLog.count({
+      where: {
+        entityType: "Event",
+        entityId: event.id,
+        action: "EVENT_PUBLISHED"
+      }
+    });
+    expect(auditCount).toBe(1);
+  });
+
+  it("allows only one of two concurrent publish requests", async () => {
+    const event = await createApprovedEvent("integration-publish-event-concurrent");
+
+    const responses = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/events/${event.id}/publish`)
+        .set("Cookie", pressCookie),
+      request(app.getHttpServer())
+        .post(`/events/${event.id}/publish`)
+        .set("Cookie", pressCookie)
+    ]);
+
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses).toEqual([200, 409]);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityType: "Event",
+          entityId: event.id,
+          action: "EVENT_PUBLISHED"
+        }
+      })
+    ).toBe(1);
+  });
+
+  it("does not create audit for failed publish", async () => {
+    const event = await createApprovedEvent("integration-publish-event-failed");
+
+    await request(app.getHttpServer())
+      .post(`/events/${event.id}/publish`)
+      .set("Cookie", clubAdminCookie)
+      .expect(403);
+
+    const auditCount = await prisma.auditLog.count({
+      where: {
+        entityType: "Event",
+        entityId: event.id,
+        action: "EVENT_PUBLISHED"
+      }
+    });
+    expect(auditCount).toBe(0);
+  });
+
   async function createDraftEvent(slugPrefix: string) {
     return prisma.event.create({
       data: {
@@ -639,6 +782,23 @@ describe("POST /events", () => {
         location: "AGU Buyuk Amfi",
         capacity: 100,
         status: "SUBMITTED"
+      }
+    });
+  }
+
+  async function createApprovedEvent(slugPrefix: string) {
+    return prisma.event.create({
+      data: {
+        clubId,
+        createdById: clubAdminId,
+        title: `Publish Integration Event ${Date.now()}`,
+        slug: `${slugPrefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        description: "Publish integration event description",
+        startsAt: new Date("2026-08-10T11:00:00.000Z"),
+        endsAt: new Date("2026-08-10T13:00:00.000Z"),
+        location: "AGU Buyuk Amfi",
+        capacity: 100,
+        status: "APPROVED"
       }
     });
   }

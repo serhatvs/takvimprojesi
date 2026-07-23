@@ -76,4 +76,12 @@ export class EventsController {
     );
     return toEventResponse(event);
   }
+
+  @Post(":eventId/publish")
+  @HttpCode(200)
+  @UseGuards(AuthenticationGuard)
+  async publishEvent(@CurrentUser() principal: Principal, @Param("eventId") eventId: string) {
+    const event = await this.eventsService.publishEvent(principal, eventId);
+    return toEventResponse(event);
+  }
 }

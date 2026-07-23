@@ -64,6 +64,7 @@ function createService({
   canCreate = true,
   canSubmit = true,
   canReview = true,
+  canPublish = true,
   clubExists = true,
   existingStatus = "DRAFT",
   updateCount = 1,
@@ -131,7 +132,8 @@ function createService({
   const authorization = {
     canCreateEventForClub: vi.fn().mockResolvedValue(canCreate),
     canSubmitEventForClub: vi.fn().mockResolvedValue(canSubmit),
-    canReviewEvents: vi.fn().mockReturnValue(canReview)
+    canReviewEvents: vi.fn().mockReturnValue(canReview),
+    canPublishEvents: vi.fn().mockReturnValue(canPublish)
   };
   const lifecycle = {
     assertTransitionAllowed: vi.fn((from: string, to: string) => {
@@ -142,6 +144,9 @@ function createService({
         from === "SUBMITTED" &&
         ["CHANGES_REQUESTED", "REJECTED", "APPROVED"].includes(to)
       ) {
+        return;
+      }
+      if (from === "APPROVED" && to === "PUBLISHED") {
         return;
       }
 
@@ -602,6 +607,147 @@ describe("EventsService", () => {
         "11111111-1111-4111-8111-111111111111",
         "APPROVED"
       )
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("allows a press editor to publish an approved event", async () => {
+    const { service, lifecycle } = createService({
+      existingStatus: "APPROVED",
+      updatedStatus: "PUBLISHED"
+    });
+
+    const event = await service.publishEvent(
+      pressEditor,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(event.status).toBe("PUBLISHED");
+    expect(lifecycle.assertTransitionAllowed).toHaveBeenCalledWith(
+      "APPROVED",
+      "PUBLISHED",
+      ["PRESS_EDITOR"]
+    );
+  });
+
+  it("allows a system admin to publish an approved event", async () => {
+    const { service, lifecycle } = createService({
+      existingStatus: "APPROVED",
+      updatedStatus: "PUBLISHED"
+    });
+
+    const event = await service.publishEvent(
+      systemAdmin,
+      "11111111-1111-4111-8111-111111111111"
+    );
+
+    expect(event.status).toBe("PUBLISHED");
+    expect(lifecycle.assertTransitionAllowed).toHaveBeenCalledWith(
+      "APPROVED",
+      "PUBLISHED",
+      ["SYSTEM_ADMIN"]
+    );
+  });
+
+  it("does not allow a club admin to publish", async () => {
+    const { service } = createService({ canPublish: false, existingStatus: "APPROVED" });
+
+    await expect(
+      service.publishEvent(clubAdmin, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it.each(["SUBMITTED", "DRAFT", "REJECTED", "CHANGES_REQUESTED", "PUBLISHED", "CANCELLED"])(
+    "does not publish an event in %s status",
+    async (existingStatus) => {
+      const { service } = createService({ existingStatus });
+
+      await expect(
+        service.publishEvent(pressEditor, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(ConflictException);
+    }
+  );
+
+  it("creates publish event update and audit inside one transaction", async () => {
+    const calls: string[] = [];
+    const transactionClient = {
+      event: {
+        updateMany: vi.fn(async () => {
+          calls.push("update");
+          return { count: 1 };
+        }),
+        findUniqueOrThrow: vi.fn(async () => {
+          calls.push("read");
+          return { status: "PUBLISHED" };
+        })
+      },
+      auditLog: {
+        create: vi.fn(async () => {
+          calls.push("audit");
+          return { id: "audit-id" };
+        })
+      }
+    };
+    const { service, prisma } = createService({ existingStatus: "APPROVED" });
+    prisma.$transaction.mockImplementationOnce(async (callback) => callback(transactionClient));
+
+    await service.publishEvent(pressEditor, "11111111-1111-4111-8111-111111111111");
+
+    expect(calls).toEqual(["update", "audit", "read"]);
+    expect(transactionClient.event.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "11111111-1111-4111-8111-111111111111",
+        status: "APPROVED"
+      },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: expect.any(Date)
+      }
+    });
+    expect(transactionClient.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorId: "press-editor-id",
+        entityType: "Event",
+        entityId: "11111111-1111-4111-8111-111111111111",
+        action: "EVENT_PUBLISHED",
+        before: { status: "APPROVED" },
+        after: { status: "PUBLISHED" }
+      })
+    });
+  });
+
+  it("bubbles publish audit failure so the transaction can roll back", async () => {
+    const { service } = createService({ existingStatus: "APPROVED", auditFails: true });
+
+    await expect(
+      service.publishEvent(pressEditor, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toThrow("audit failed");
+  });
+
+  it("does not create publish audit when conditional update fails", async () => {
+    const transactionClient = {
+      event: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        findUniqueOrThrow: vi.fn()
+      },
+      auditLog: {
+        create: vi.fn()
+      }
+    };
+    const { service, prisma } = createService({ existingStatus: "APPROVED" });
+    prisma.$transaction.mockImplementationOnce(async (callback) => callback(transactionClient));
+
+    await expect(
+      service.publishEvent(pressEditor, "11111111-1111-4111-8111-111111111111")
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(transactionClient.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("returns conflict for a repeated or concurrent second publish", async () => {
+    const { service } = createService({ existingStatus: "APPROVED", updateCount: 0 });
+
+    await expect(
+      service.publishEvent(pressEditor, "11111111-1111-4111-8111-111111111111")
     ).rejects.toBeInstanceOf(ConflictException);
   });
 });
