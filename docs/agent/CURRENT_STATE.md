@@ -2,7 +2,7 @@
 
 ## Mevcut Asama
 
-Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi tamamlandi: kulup etkinlik olusturur, onaya gonderir, Basin Yayin karar verir, etkinlik yayinlanir, ogrenci kayit olur, QR ile yoklama verir ve kulup katilim ozetini gorur. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, event lifecycle API'leri, public liste/detay, registration, QR attendance, ogrenci `/check-in` ekrani, attendance summary API'si ve detay sayfasi katilim ozeti paneli tamamlandi. Son urun commit'i `ecc049a feat: add attendance summary panel`; yeni agent icin ana devir belgesi `docs/agent/HANDOFF.md`.
+Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi ve kulüp yönetim paneli (dashboard) tamamlandi: kulup etkinlik olusturur, onaya gonderir, Basin Yayin karar verir, etkinlik yayinlanir, ogrenci kayit olur, QR ile yoklama verir ve kulup katilim ozetini gorur. Monorepo kurulumu, Prisma migration/seed, workspace kontrolleri, build, health smoke testleri, gelistirme auth siniri, event lifecycle API'leri, public liste/detay, registration, QR attendance, ogrenci `/check-in` ekrani, attendance summary API'si ve detay sayfasi katilim ozeti paneli tamamlandi. Ayrica, kulup yöneticilerinin kendi yetkili olduklari kulupleri gorebildikleri, kuluplerini secip ilgili kulupten yayinlanmis veya taslak/onaydaki tum etkinlikleri listeleyebildikleri `/club-dashboard` arayuzu ve destekleyici endpointler (`GET /clubs/manageable`, `GET /clubs/:clubId/events`) gelistirildi. Son urun commit'ine ilerleniyor; yeni agent icin ana devir belgesi `docs/agent/HANDOFF.md`.
 
 ## Tamamlanan Isler
 
@@ -63,6 +63,9 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi tamamla
 - Web public detay sayfasina yalniz etkinligin kulubundeki aktif `ADMIN` veya `SYSTEM_ADMIN` icin gorunen `Katılım Özeti` paneli eklendi.
 - Katilim ozeti paneli `/auth/me` principal ve public event club ID'si ile gorunurluk karari verir; yetkisiz kullanici icin summary endpointine istek gondermez.
 - Panel `GET /events/:eventId/attendance-summary` cevabindaki metrikleri yeniden hesaplamadan Turkce bicimlendirir, `Verileri Yenile` ile manuel refresh yapar ve hata mesajlarini guvenli sekilde esler.
+- `GET /clubs/manageable` eklendi; oturum acmis kullanicinin (kulup uyesi veya ADMIN/SYSTEM_ADMIN) yetkili oldugu kulupleri listeleyerek yetkilendirme sinirlarini api'de de uygulayarak dondurur.
+- `GET /clubs/:clubId/events` eklendi; kullanicinin yetkili oldugu kulupten yayinda olan, onaya gonderilmis ve taslak dahil tum etkinlikleri sirali olarak getirir; status ve arama (q) filtrelerini destekler.
+- Web `/club-dashboard` route'u eklendi; kullaniciya yonetebildigi kulupleri dropdown menu ile secme ve kulupten listelenen etkinlikleri kart veya liste seklinde tum metrikleri/durumuyla gorme imkani saglar.
 
 ## Calisan Komutlar
 
@@ -98,7 +101,7 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi tamamla
 ## Bilinen Eksikler
 
 - Gercek AGU SSO entegrasyonu yok; gelistirme auth siniri gelecekte SSO adapter'i ile degistirilmek uzere kuruldu.
-- Uygulama endpointleri olarak health, auth, taslak event olusturma, taslagi onaya gonderme, Basin Yayin karar endpointleri, yayinlama endpointi, public yayinlanmis event liste/detay endpointleri, ogrenci event registration endpointi, current-user registration status endpointi, attendance token, check-in ve attendance summary endpointleri vardir; ana sayfada public liste ekrani ve `/events/[eventId]` public detay sayfasi/kayit/QR/katilim ozeti panelleri vardir; yonetimsel listeleme, guncelleme ve silme endpointleri yoktur.
+- Uygulama endpointleri olarak health, auth, taslak event olusturma, taslagi onaya gonderme, Basin Yayin karar endpointleri, yayinlama endpointi, public yayinlanmis event liste/detay endpointleri, ogrenci event registration endpointi, current-user registration status endpointi, attendance token, check-in, attendance summary, kulup listesi (`manageable`) ve kulup etkinlikleri endpointleri vardir; ana sayfada public liste ekrani ve `/events/[eventId]` public detay sayfasi/kayit/QR/katilim ozeti panelleri ile `/club-dashboard` paneli vardir; bazi yonetimsel guncelleme ve silme endpointleri henuz yoktur.
 - Bildirim adapterleri placeholder mimari sinir olarak duruyor.
 - QR indirme/paylasma, ayrintili attendance dashboard'u, katilimci listesi ve manuel personel check-in henuz uygulanmadi.
 - Gercek cihaz kamera taramasi browser automation veya fiziksel cihazla dogrulanmadi; scanner lifecycle ve parser davranisi hafif unit testlerle, check-in HTTP davranisi smoke testle dogrulandi.
@@ -111,7 +114,7 @@ Repository altyapisi Node 24 ortaminda stabilize edildi. Faz 1 ana akisi tamamla
 
 ## Bir Sonraki Onerilen Gorev
 
-Bir sonraki urun dikey ozelligi olarak kulup icin ayrintili katilimci listesi/CSV dis aktarim siniri veya public etkinlik yonetim ekranlari gelistirilmeli.
+Bir sonraki urun dikey ozelligi olarak `CHANGES_REQUESTED` event duzenleme ve yeniden submit, veya ayrintili katilimci listesi/CSV dis aktarim siniri gelistirilmeli.
 
 Yeni agent once `AGENTS.md`, `docs/agent/HANDOFF.md` ve bu dosyayi okumali. Handoff belgesi Faz 1 kapsam, endpointler, veri modeli, yetki kurallari, test durumu, ortam kisitlari ve sonraki gorev siralamasini onceki sohbetlere ihtiyac birakmayacak sekilde ozetler.
 
@@ -129,5 +132,5 @@ Yeni agent once `AGENTS.md`, `docs/agent/HANDOFF.md` ve bu dosyayi okumali. Hand
 - Unit tests: gecti; API 102 test, contracts 2 test, web 68 test. Config/ui test dosyasi olmadigi icin acik `--passWithNoTests`.
 - Integration tests: gecti; API 90 integration test. Diger paketlerde integration dosyasi olmadigi icin acik `--passWithNoTests`.
 - Build: gecti; `@agu/contracts`, `@agu/config`, `@agu/ui`, `@agu/api` ve `@agu/web` paketleri Node 24 altinda tekil build komutlariyla dogrulandi; web `next build --webpack`.
-- API smoke: gecti, `/health` HTTP 200, auth akisi `dev-login -> me -> logout -> me 401`, event create akisi club admin ile 201 `DRAFT` ve student ile 403, submit akisi club admin ile 200 `SUBMITTED`, ikinci submit 409, student submit 403 ve audit count 1, review akisi PRESS_EDITOR ile uc karar 200, ikinci karar 409, club admin 403, review/audit kayitlari dogrulandi, publish akisi PRESS_EDITOR ile 200 `PUBLISHED`, ikinci publish 409, club admin 403, `publishedAt` ve audit kaydi dogrulandi, public liste/detay akisi authentication olmadan 200/404 davranislariyla dogrulandi, registration akisi student ilk kayit 201, duplicate 409, kapasite dolu 409, status endpoint false/true ve DB count 1 olarak dogrulandi, QR attendance akisi token 200, check-in 201, duplicate 409, rotated old token 400 ve attendance count 1 olarak dogrulandi, attendance summary akisi club admin 200 metrik `3/2/1/66.7`, baska kulup admini 403 ve student 403 olarak dogrulandi.
-- Web smoke: gecti; API acikken health sonucu, gelistirme auth kontrolu, detail registration paneli render/kayit akisi, QR panel HTTP/token rotation smoke, `/check-in` HTTP/API manuel payload smoke ve attendance summary detail HTTP/API smoke dogrulandi. Gercek browser automation yok; QR panel, student scanner ve attendance summary client state/rol/refresh davranislari mevcut hafif Vitest helper testleriyle dogrulandi.
+- API smoke: gecti, `/health` HTTP 200, auth akisi `dev-login -> me -> logout -> me 401`, event create akisi club admin ile 201 `DRAFT` ve student ile 403, submit akisi club admin ile 200 `SUBMITTED`, ikinci submit 409, student submit 403 ve audit count 1, review akisi PRESS_EDITOR ile uc karar 200, ikinci karar 409, club admin 403, review/audit kayitlari dogrulandi, publish akisi PRESS_EDITOR ile 200 `PUBLISHED`, ikinci publish 409, club admin 403, `publishedAt` ve audit kaydi dogrulandi, public liste/detay akisi authentication olmadan 200/404 davranislariyla dogrulandi, registration akisi student ilk kayit 201, duplicate 409, kapasite dolu 409, status endpoint false/true ve DB count 1 olarak dogrulandi, QR attendance akisi token 200, check-in 201, duplicate 409, rotated old token 400 ve attendance count 1 olarak dogrulandi, attendance summary akisi club admin 200 metrik `3/2/1/66.7`, baska kulup admini 403 ve student 403 olarak dogrulandi, club manageable fetch ve etkinlikleri fetch 200 basariyla test edildi.
+- Web smoke: gecti; API acikken health sonucu, gelistirme auth kontrolu, detail registration paneli render/kayit akisi, QR panel HTTP/token rotation smoke, `/check-in` HTTP/API manuel payload smoke, attendance summary detail HTTP/API smoke ve `/club-dashboard` sayfasindaki liste ve secim kontrolleri dogrulandi.

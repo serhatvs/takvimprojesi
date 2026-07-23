@@ -197,5 +197,56 @@ export interface EventAttendanceSummaryResponse {
   generatedAt: string;
 }
 
+// Club Dashboard Contracts
+export interface ManageableClub {
+  id: string;
+  name: string;
+}
+
+export interface ManageableClubsResponse {
+  clubs: ManageableClub[];
+}
+
+export interface ClubEventListItem {
+  id: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+  status: EventStatus;
+  publishedAt: string | null;
+  updatedAt: string;
+}
+
+export interface ClubEventStatusCounts {
+  DRAFT: number;
+  SUBMITTED: number;
+  CHANGES_REQUESTED: number;
+  REJECTED: number;
+  APPROVED: number;
+  PUBLISHED: number;
+  CANCELLED: number;
+  COMPLETED: number;
+}
+
+export interface ClubEventsResponse {
+  club: {
+    id: string;
+    name: string;
+  };
+  items: ClubEventListItem[];
+  pagination: PaginationResponse;
+  statusCounts: ClubEventStatusCounts;
+}
+
+export interface ClubEventsQueryParams {
+  page?: string;
+  pageSize?: string;
+  q?: string;
+  status?: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

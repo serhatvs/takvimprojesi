@@ -735,3 +735,61 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Club Dashboard */
+.club-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+
+.club-selector-item {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border, #e2e8f0);
+  text-decoration: none;
+  color: inherit;
+  font-size: 0.875rem;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.club-selector-item:hover {
+  background-color: var(--surface-hover, #f1f5f9);
+}
+
+.club-selector-item[data-active="true"] {
+  background-color: var(--accent-bg, #dbeafe);
+  border-color: var(--accent, #3b82f6);
+  font-weight: 600;
+}
+
+.status-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+
+.status-count-card {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border, #e2e8f0);
+  text-align: center;
+}
+
+.status-count-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.status-count-label {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+  margin-top: 0.25rem;
+}
+
+.dashboard-nav {
+  margin-bottom: 1rem;
+}

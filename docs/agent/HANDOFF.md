@@ -185,7 +185,7 @@ Belgede tanimli ama henuz endpoint olarak uygulanmamis veya tamamlanmamis surecl
 
 ## 7. Mevcut API Endpointleri
 
-Toplam uygulanmis endpoint sayisi: 17.
+Toplam uygulanmis endpoint sayisi: 19.
 
 ### Health
 
@@ -303,6 +303,22 @@ Toplam uygulanmis endpoint sayisi: 17.
   - `PUBLISHED`, `COMPLETED`, `CANCELLED` statuslerinde anlamli summary doner.
   - `400`: gecersiz id; `401`; `403`; `404`; `409`: status summary icin uygun degil.
 
+### Clubs (Kulüp Yönetimi)
+
+- `GET /clubs/manageable`
+  - Auth gerekir.
+  - Kullanicinin yetkili oldugu (CLUB_ADMIN veya SYSTEM_ADMIN) kuluplerin listesini doner.
+  - Basari: `200`, `{ clubs: [{ id, name }] }`.
+  - `401`: auth yok.
+
+- `GET /clubs/:clubId/events`
+  - Auth gerekir.
+  - Yetki: belirtilen kulupten aktif `ADMIN` veya `SYSTEM_ADMIN`.
+  - Kullanicinin yonettigi kulube ait, `CANCELLED` veya `REJECTED` vb. dahil tum statuslerdeki etkinlikleri listeler.
+  - Query: `q`, `status`, `page`, `pageSize`.
+  - Basari: `200`, event item listesi ve sayfalama verisi doner.
+  - `401`: auth yok; `403`: yetki yok; `404`: kulup yok.
+
 ## 8. Transaction ve Eszamanlilik Kararlari
 
 - Lifecycle gecisleri kosullu update kullanir: update sadece beklenen mevcut status ile eslesirse basarili olur.
@@ -347,6 +363,7 @@ Uygulanmis route'lar:
 - `/`: Ana public etkinlik listesi.
 - `/events/[eventId]`: Public event detail.
 - `/check-in`: Ogrenci QR yoklama ekrani.
+- `/club-dashboard`: Kulup yonetim paneli, yetkili olunan kulupleri ve etkinlikleri listeler.
 
 Davranislar:
 
@@ -357,6 +374,7 @@ Davranislar:
 - Yetkili QR yonetim paneli: Sadece event kulubu aktif `ADMIN` veya `SYSTEM_ADMIN`; token uretir, QR gorseli ve expiry/kalan sure gosterir, refresh eder.
 - Ogrenci kamera/manual check-in ekrani: `/check-in`; once `/auth/me`, sonra `STUDENT` kontrolu. Kamera sadece kullanici aksiyonuyla baslar; manuel JSON payload yedegi vardir.
 - Attendance summary paneli: Detail sayfasinda sadece event kulubu aktif `ADMIN` veya `SYSTEM_ADMIN`; `GET /events/:eventId/attendance-summary` ile toplam metrikleri gosterir ve manuel refresh yapar.
+- Kulup Dashboard: `/club-dashboard`; `GET /clubs/manageable` ile kulupleri secer, `GET /clubs/:clubId/events` ile etkinlikleri status/q filtreleriyle listeler. Kulupten olmayan kullanicilar 403 alir.
 
 Panel gorunurlukleri:
 
@@ -364,8 +382,8 @@ Panel gorunurlukleri:
 - `STUDENT`: Registration panel ve `/check-in` kullanabilir; QR/summary paneller gorunmez.
 - `PRESS_EDITOR`: Review/publish API yetkisi vardir; web detail QR/summary/registration butonlari gorunmez.
 - Normal kulup uyesi: QR/summary paneli gorunmez.
-- Kendi kulubunun `CLUB_ADMIN` uyeligi: QR ve attendance summary paneli gorur.
-- `SYSTEM_ADMIN`: QR ve attendance summary paneli gorur.
+- Kendi kulubunun `CLUB_ADMIN` uyeligi: QR ve attendance summary paneli gorur, `/club-dashboard` arayuzunu kullanabilir.
+- `SYSTEM_ADMIN`: QR ve attendance summary paneli gorur, tum kulupler icin `/club-dashboard` arayuzunu kullanabilir.
 
 ## 11. Test Durumu
 
