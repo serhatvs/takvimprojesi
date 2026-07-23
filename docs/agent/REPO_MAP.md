@@ -15,7 +15,7 @@
 
 ## Uygulamalar
 
-- `apps/web`: Next.js App Router web arayuzu. Giris noktasi `apps/web/app/page.tsx`; gelistirme auth smoke kontrolu `apps/web/app/dev-auth-panel.tsx`.
+- `apps/web`: Next.js App Router web arayuzu. Giris noktasi `apps/web/app/page.tsx`; public etkinlik liste yardimcilari ve testleri `apps/web/app/public-events.ts` ve `apps/web/app/public-events.test.ts`; gelistirme auth smoke kontrolu `apps/web/app/dev-auth-panel.tsx`.
 - `apps/api`: NestJS REST API. Giris noktasi `apps/api/src/main.ts`.
 - `apps/api/src/auth`: Gelistirme auth endpointleri, session servisi, authentication guard, role guard/decorator, current user decorator ve authorization service siniri.
 - `apps/api/src/events`: Event lifecycle servisi, public `GET /events` ve `GET /events/:eventId`, `POST /events` taslak etkinlik olusturma, `POST /events/:eventId/submit` onaya gonderme, Basin Yayin review karar endpointleri ve `POST /events/:eventId/publish` yayinlama controller/service/dto siniri.

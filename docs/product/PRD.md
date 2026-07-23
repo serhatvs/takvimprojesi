@@ -19,6 +19,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 - Etkinlik olusturma, onaya gonderme ve durum gecisi servis siniri.
 - Basin Yayin inceleme kayit modeli.
 - Onaylanan etkinliklerin yayinlanmasi ve yayinlanmis etkinliklerin public liste/detay API'leriyle kampus takvimine hazir hale gelmesi.
+- Ana sayfada yayinlanmis ve yaklasan etkinliklerin arama, tarih filtresi ve sayfalama ile listelenmesi.
 - Ogrenci kaydi ve tekil attendance kaydi icin veri modeli.
 - QR token ham degerini saklamadan katilim dogrulama mimarisi.
 - Audit log ve bildirim adaptoru icin baslangic sinirlari.
@@ -36,7 +37,8 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 
 - Kulup yoneticisi taslak etkinlik olusturur ve Basin Yayin onayina gonderir.
 - Basin Yayin editoru aciklama ekleyerek onaylar, reddeder veya degisiklik ister.
-- Herkes yayinlanmis gelecek etkinlikleri kampus takvimi icin listeler ve public detayini acar.
+- Herkes yayinlanmis gelecek etkinlikleri ana sayfadaki kampus takviminde arar, tarih araligina gore filtreler ve listeler.
+- Herkes yayinlanmis bir etkinligin public detayini API uzerinden acar.
 - Ogrenci yayinlanmis etkinlige bir kez kayit olur.
 - Ogrenci etkinlik gunu QR ile yalnizca bir attendance kaydi olusturur.
 - Kulup yoneticisi etkinlik katilim sayilarini gorur.
@@ -45,7 +47,7 @@ AGU ogrenci kulubu etkinlikleri daginik kanallarda duyuruluyor, onay sureci merk
 
 - Kulup etkinliklerinin onay sureci sistem uzerinden izlenebilir.
 - Gecersiz etkinlik durum gecisleri API servis katmaninda engellenir.
-- Yayinlanan etkinlikler merkezi takvim icin public liste ve detay verisi uretir.
+- Yayinlanan etkinlikler merkezi takvim icin public liste ve detay verisi uretir ve ana sayfada kartlar halinde gorunur.
 - Kayit ve attendance tekillik kurallari veritabani tarafinda korunur.
 - Kritik durum degisiklikleri audit log ile geriye donuk incelenebilir.
 

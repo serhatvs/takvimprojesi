@@ -16,6 +16,8 @@ Web uygulamasi urun deneyimini ve istemci tarafli durumlari yonetir. Yetki, duru
 
 Public etkinlik kesfi `GET /events` ve `GET /events/:eventId` endpointleriyle authentication gerektirmeden sunulur. Bu endpointler yalnizca `PUBLISHED` etkinlikleri gosterir; public olmayan veya bilinmeyen event ID'leri varlik bilgisi sizdirmamak icin `404 Not Found` doner.
 
+Web ana sayfasi public etkinlik listesini server component icinde `GET /events` uzerinden okur. Arama, tarih araligi ve sayfalama URL query string ile tasinir; sayfa yenilemesinde filtreler korunur. Public liste fetch'i `cache: "no-store"` ile yapilir; kampus takvimi yayinlanan etkinlik degisikliklerini geciktirmeden gostermeyi onceliklendirir. API erisilemezse sayfa cokmez ve kullaniciya kisa hata durumu gosterilir.
+
 ## Veritabani Yaklasimi
 
 PostgreSQL ana veri deposudur. Prisma schema domain iliskilerini, indeksleri ve benzersizlik kurallarini tanimlar. Migration dosyalari veri etkisi kontrol edilerek uretilmelidir. Tarihler UTC olarak saklanir.
@@ -63,6 +65,8 @@ Publish islemi icin audit action `EVENT_PUBLISHED` olarak tutulur. Audit kaydi o
 Yalnizca gerekli kullanici bilgileri saklanir. Gizli degerler repoya yazilmaz; `.env.example` yalnizca ornek gelistirme degerleri tasir. Session secret `.env` uzerinden gelir. Session cookie `HttpOnly`, `SameSite=Lax` ve production ortaminda `Secure` olarak yazilir. QR token ham degeri kalici saklama zorunlulugu yoktur. Yetki kontrolleri API tarafinda uygulanir.
 
 Public event response'lari `createdById`, kullanici e-postasi, uyelik bilgisi, review, audit, QR token hash ve internal metadata dondurmez; yalniz takvim ve detay gorunumu icin gerekli event ve kulup alanlarini secer.
+
+Web public etkinlik kartlari da yalniz public response alanlarini render eder: baslik, kulup adi, tarih/saat, konum, aciklama, kapasite ve yayin durumu. Development auth paneli yalniz development ortaminda gorunur ve public liste fetch'inden ayri tutulur.
 
 ## Gelecekte AGU SSO Entegrasyon Noktasi
 
