@@ -17,23 +17,23 @@ Bu belge AGÜ Kampüs Takvimi Faz 1 pilot sürüm öncesi güvenlik ve yayın ha
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
 | Dev-login production engeli | ✅ HAZİR | `AuthService.ensureDevAuthAvailable()` `NODE_ENV=production` veya `ENABLE_DEV_AUTH !== 'true'` olduğunda 403 döndürür. Startup env validation da bu kombinasyonu reddeder. |
-| Gerçek AGÜ SSO | 🔴 KRİTİK BLOCKER | Henüz SSO provider yok. Pilot test hesaplarıyla yapılabilir ama gerçek öğrenci/personel girişi için SSO şart. **Pilot kapsamı yalnızca test hesaplarıyla sınırlanırsa kabul edilebilir (⚠️).** |
+| Gerçek AGÜ SSO | 🔴 KRİTİK BLOCKER | Henüz SSO provider yok. Pilot test hesaplarıyla yapılabilir ama gerçek öğrenci/personel girişi için SSO şart. |
 | Session cookie güvenliği | ✅ HAZİR | HttpOnly, SameSite=Lax, production'da Secure. Token payload'ında yalnızca userId. |
-| Session secret doğrulaması | ✅ HAZİR | Startup'ta AUTH_SESSION_SECRET varlığı ve minimum uzunluğu kontrol edilir. |
+| Session secret doğrulaması | ✅ HAZİR | Startup'ta `AUTH_SESSION_SECRET` varlığı, minimum 32 karakter uzunluğu ve `.env.example` geliştirme değerinin kullanılmadığı doğrulanır. |
 
 ## 2. Yetkilendirme
 
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
-| API-side role enforcement | ✅ HAZİR | Tüm korumali endpointler AuthenticationGuard + role/club yetki kontrolü. |
-| Controller'da iş mantığı yok | ✅ HAZİR | Authorization kararları AuthorizationService ve servis katmanında. |
+| API-side role enforcement | ✅ HAZİR | Tüm korumalı endpointler `AuthenticationGuard` + role/club yetki kontrolü ile korunur. |
+| Controller'da iş mantığı yok | ✅ HAZİR | Authorization kararları `AuthorizationService` ve servis katmanında uygulanır. |
 | Principal token'dan çözülmez | ✅ HAZİR | Her istekte DB'den güncel roller ve üyelikler yüklenir. |
 
 ## 3. CORS ve İletişim Güvenliği
 
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
-| CORS origin kontrolü | ✅ HAZİR | Production'da WEB_ORIGIN zorunlu, wildcard (*) yasak, env validasyonla kontrol edilir. Development'ta localhost fallback. |
+| CORS origin kontrolü | ✅ HAZİR | Production'da `WEB_ORIGIN` zorunlu, wildcard (`*`) ve bilinmeyen origin'ler kesinlikle reddedilir. Development'ta localhost fallback. |
 | Credentials taşıma | ✅ HAZİR | `credentials: true` ile cookie tabanlı auth. |
 | HSTS | ✅ HAZİR | API ve Web tarafında production'da HSTS header'ı eklenir. |
 
@@ -45,7 +45,8 @@ Bu belge AGÜ Kampüs Takvimi Faz 1 pilot sürüm öncesi güvenlik ve yayın ha
 | X-Frame-Options: DENY | ✅ HAZİR | Clickjacking koruması |
 | X-XSS-Protection: 0 | ✅ HAZİR | Legacy header, modern tarayıcılarda CSP yeterli |
 | Referrer-Policy | ✅ HAZİR | strict-origin-when-cross-origin |
-| Content-Security-Policy | ⚠️ KABUL EDİLEBİLİR | Pilot için eklenmedi. Production CSP kuralları deploy ortamına göre özelleştirilmeli. |
+| Content-Security-Policy | ✅ HAZİR | Web ve API için ayrı yapılandırıldı; kamera/QR stream, Next.js script/style ve API connect kaynaklarına uyumlu. |
+| Framework bilgi sızıntısı | ✅ HAZİR | `X-Powered-By` header'ı Express ve Next.js düzeyinde kaldırılmıştır. |
 
 ## 5. Rate Limiting
 
@@ -60,16 +61,17 @@ Bu belge AGÜ Kampüs Takvimi Faz 1 pilot sürüm öncesi güvenlik ve yayın ha
 
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
-| QR token saklanmıyor | ✅ HAZİR | Ham token yalnızca response'da bir kez döner, DB'de SHA-256 hash saklanır. |
+| QR token saklanmıyor | ✅ HAZİR | Ham token yalnızca response'da bir kez döner, DB'de HMAC SHA256 ile doğrulanır. |
 | Token loglara yazılmıyor | ✅ HAZİR | Audit metadata'sında token/hash yok. Kod içinde `console.log` yok. |
 | Public response minimizasyonu | ✅ HAZİR | createdById, email, membership, review, audit alanları dönmüyor. |
 | Summary'de kişisel veri | ✅ HAZİR | Yalnızca yetkili yönetici erişebilir; toplam metrikler + katılımcı bilgisi. |
+| Production Hata Güvenliği | ✅ HAZİR | `AllExceptionsFilter` ile 500 yanıtlarında stack trace, connection string veya token/secret sızıntısı tamamen engellenmiştir. |
 
 ## 7. Veritabanı ve Migration
 
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
-| Migration stratejisi | ✅ HAZİR | Production'da `prisma migrate deploy` (seed çalıştırmaz, reset yapmaz). |
+| Migration stratejisi | ✅ HAZİR | Production'da `prisma migrate deploy` (seed çalıştırmaz, reset yapmaz). Sıfır veritabanına başarıyla uygulanabilirliği doğrulandı. |
 | Development seed idempotent | ✅ HAZİR | Seed birden çok kez çalıştırılabilir. |
 | Destructive migration yok | ✅ HAZİR | Mevcut migration'larda DROP/TRUNCATE yok. |
 
@@ -77,16 +79,16 @@ Bu belge AGÜ Kampüs Takvimi Faz 1 pilot sürüm öncesi güvenlik ve yayın ha
 
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
-| /health (liveness) | ✅ HAZİR | Lightweight, DB bağımlılığı yok. |
-| /ready (readiness) | ✅ HAZİR | DB connectivity testi (SELECT 1). Başarısızsa 503. |
+| /health (liveness) | ✅ HAZİR | Lightweight, DB bağımlılığı yok (200 OK). |
+| /ready (readiness) | ✅ HAZİR | DB connectivity testi (SELECT 1). Canlı iken 200, kapalı iken 503. |
 
 ## 9. Ortam Değişkenleri
 
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
 | Production env validation | ✅ HAZİR | Startup'ta DATABASE_URL, AUTH_SESSION_SECRET, QR_ATTENDANCE_SECRET, WEB_ORIGIN kontrol edilir. |
-| Zayıf secret tespiti | ✅ HAZİR | Minimum 32 karakter, default dev değerleri reddedilir. |
-| Dev-auth+production çakışması | ✅ HAZİR | ENABLE_DEV_AUTH=true + NODE_ENV=production = uygulama başlatılmaz. |
+| Zayıf ve varsayılan secret tespiti | ✅ HAZİR | Minimum 32 karakter, default `.env.example` geliştirme değerleri reddedilir. |
+| Dev-auth+production çakışması | ✅ HAZİR | `ENABLE_DEV_AUTH=true` + `NODE_ENV=production` durumunda uygulama başlatılmaz. |
 
 ## 10. Docker ve Deployment
 
@@ -102,19 +104,13 @@ Bu belge AGÜ Kampüs Takvimi Faz 1 pilot sürüm öncesi güvenlik ve yayın ha
 
 | Kategori | Durum |
 |----------|-------|
-| ✅ HAZİR | 18 madde |
-| ⚠️ KABUL EDİLEBİLİR | 4 madde (CSP, genel rate limit, Dockerfile, CI/CD) |
+| ✅ HAZİR | 20 madde |
+| ⚠️ KABUL EDİLEBİLİR | 3 madde (genel rate limit, Dockerfile, CI/CD) |
 | 🔴 KRİTİK BLOCKER | 1 madde (Gerçek AGÜ SSO) |
 
 ### Kritik Blocker Hakkında Karar
 
-**Gerçek AGÜ SSO** henüz mevcut değil. İki seçenek:
-
-1. **Pilot'u test hesaplarıyla başlat** → SSO blocker'ı **⚠️ KABUL EDİLEBİLİR** olarak yeniden sınıflandır. Dev-login production'da kapalı kalacağı için test hesapları manuel olarak (seed veya admin panel üzerinden) oluşturulmalı ve session secret güçlü tutulmalı.
-
-2. **SSO entegrasyonunu bekle** → Pilot ertelensin.
-
-Kullanıcı kararı bekleniyor.
+**Gerçek AGÜ SSO** henüz mevcut değildir. Pilot dağıtımı öncesinde kapalı ağda test hesapları ile yürütülmeli veya SSO entegrasyonu tamamlanmalıdır.
 
 ---
 
@@ -122,7 +118,9 @@ Kullanıcı kararı bekleniyor.
 
 - [x] Lint: 5 package scope geçti
 - [x] Typecheck: 5 package scope geçti
-- [x] API unit tests: geçti
-- [x] API integration tests: geçti
-- [x] Web unit tests: geçti
+- [x] API unit tests: 221 test geçti
+- [x] API integration tests: 153 test geçti
+- [x] Web unit tests: 140 test geçti
 - [x] Contracts build: geçti
+- [x] Clean DB Migration Deploy: geçti
+- [x] Production Smoke Test (CORS, CSP, dev-auth lock, headers, health/ready): geçti

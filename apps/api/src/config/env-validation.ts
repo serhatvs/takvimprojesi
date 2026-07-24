@@ -22,14 +22,18 @@ export function validateProductionEnv(): void {
     if (!databaseUrl) {
       errors.push("Missing DATABASE_URL");
     }
-    
+
     checkSecret("AUTH_SESSION_SECRET", authSessionSecret, 32);
     checkSecret("QR_ATTENDANCE_SECRET", qrAttendanceSecret, 32);
-    
+
+    if (authSessionSecret === "replace-with-a-local-development-session-secret") {
+      errors.push("AUTH_SESSION_SECRET must be changed in production");
+    }
+
     if (qrAttendanceSecret === "dev-qr-attendance-secret-change-in-production") {
       errors.push("QR_ATTENDANCE_SECRET must be changed in production");
     }
-    
+
     if (!webOrigin) {
       errors.push("Missing WEB_ORIGIN");
     } else if (webOrigin === "*") {
@@ -52,7 +56,10 @@ export function validateProductionEnv(): void {
     if (!webOrigin) warnings.push("WEB_ORIGIN");
 
     if (warnings.length > 0) {
-      Logger.warn(`Missing recommended environment variables: ${warnings.join(", ")}`, "EnvValidation");
+      Logger.warn(
+        `Missing recommended environment variables: ${warnings.join(", ")}`,
+        "EnvValidation"
+      );
     }
   }
 }

@@ -38,8 +38,12 @@ describe("validateProductionEnv", () => {
     process.env.AUTH_SESSION_SECRET = "short";
     process.env.QR_ATTENDANCE_SECRET = "short";
 
-    expect(() => validateProductionEnv()).toThrow(/AUTH_SESSION_SECRET must be at least 32 characters long/);
-    expect(() => validateProductionEnv()).toThrow(/QR_ATTENDANCE_SECRET must be at least 32 characters long/);
+    expect(() => validateProductionEnv()).toThrow(
+      /AUTH_SESSION_SECRET must be at least 32 characters long/
+    );
+    expect(() => validateProductionEnv()).toThrow(
+      /QR_ATTENDANCE_SECRET must be at least 32 characters long/
+    );
   });
 
   it("should throw if WEB_ORIGIN is *", () => {
@@ -52,6 +56,18 @@ describe("validateProductionEnv", () => {
     expect(() => validateProductionEnv()).toThrow(/WEB_ORIGIN must not be '\*'/);
   });
 
+  it("should throw if AUTH_SESSION_SECRET is default", () => {
+    process.env.NODE_ENV = "production";
+    process.env.DATABASE_URL = "postgres://";
+    process.env.WEB_ORIGIN = "https://example.com";
+    process.env.AUTH_SESSION_SECRET = "replace-with-a-local-development-session-secret";
+    process.env.QR_ATTENDANCE_SECRET = "12345678901234567890123456789012";
+
+    expect(() => validateProductionEnv()).toThrow(
+      /AUTH_SESSION_SECRET must be changed in production/
+    );
+  });
+
   it("should throw if QR_ATTENDANCE_SECRET is default", () => {
     process.env.NODE_ENV = "production";
     process.env.DATABASE_URL = "postgres://";
@@ -59,7 +75,9 @@ describe("validateProductionEnv", () => {
     process.env.AUTH_SESSION_SECRET = "12345678901234567890123456789012";
     process.env.QR_ATTENDANCE_SECRET = "dev-qr-attendance-secret-change-in-production";
 
-    expect(() => validateProductionEnv()).toThrow(/QR_ATTENDANCE_SECRET must be changed in production/);
+    expect(() => validateProductionEnv()).toThrow(
+      /QR_ATTENDANCE_SECRET must be changed in production/
+    );
   });
 
   it("should throw if ENABLE_DEV_AUTH is true in production", () => {
@@ -70,7 +88,9 @@ describe("validateProductionEnv", () => {
     process.env.QR_ATTENDANCE_SECRET = "12345678901234567890123456789012";
     process.env.ENABLE_DEV_AUTH = "true";
 
-    expect(() => validateProductionEnv()).toThrow(/ENABLE_DEV_AUTH must not be 'true' in production/);
+    expect(() => validateProductionEnv()).toThrow(
+      /ENABLE_DEV_AUTH must not be 'true' in production/
+    );
   });
 
   it("should not throw if all valid", () => {

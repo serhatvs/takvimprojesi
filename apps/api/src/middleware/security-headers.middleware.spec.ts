@@ -13,7 +13,8 @@ describe("securityHeaders", () => {
     process.env = { ...originalEnv };
     req = {};
     res = {
-      setHeader: vi.fn()
+      setHeader: vi.fn(),
+      removeHeader: vi.fn()
     };
     next = vi.fn();
   });
@@ -22,14 +23,19 @@ describe("securityHeaders", () => {
     process.env = originalEnv;
   });
 
-  it("should set basic security headers", () => {
+  it("should set basic security headers and remove X-Powered-By", () => {
     process.env.NODE_ENV = "development";
     securityHeaders(req as Request, res as Response, next);
 
+    expect(res.removeHeader).toHaveBeenCalledWith("X-Powered-By");
     expect(res.setHeader).toHaveBeenCalledWith("X-Content-Type-Options", "nosniff");
     expect(res.setHeader).toHaveBeenCalledWith("X-Frame-Options", "DENY");
     expect(res.setHeader).toHaveBeenCalledWith("X-XSS-Protection", "0");
     expect(res.setHeader).toHaveBeenCalledWith("Referrer-Policy", "strict-origin-when-cross-origin");
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Content-Security-Policy",
+      "default-src 'none'; frame-ancestors 'none';"
+    );
     expect(res.setHeader).not.toHaveBeenCalledWith("Strict-Transport-Security", expect.any(String));
     expect(next).toHaveBeenCalled();
   });

@@ -108,6 +108,9 @@ Web katilim ozeti paneli de yalniz toplam metrikleri render eder. Ogrenci isimle
 
 Public detail sayfasi metadata title degerini etkinlik basligindan, description degerini etkinlik aciklamasinin normalize edilmis ve kisaltilmis ozetinden uretir. Metadata icinde internal alan, kullanici bilgisi veya gizli veri bulunmaz. Ayni request yasam dongusunde metadata ve sayfa verisi icin `cache()` ile tekrar azaltimi uygulanir.
 
+Production ortaminda `validateProductionEnv()` ile `DATABASE_URL`, min 32 karakter `AUTH_SESSION_SECRET`, min 32 karakter varsayilan olmayan `QR_ATTENDANCE_SECRET` ve wildcard olmayan `WEB_ORIGIN` kontrol edilir. `ENABLE_DEV_AUTH=true` varsa uygulama baslatilmaz. `AllExceptionsFilter` ile unexpected 500 hatalarinda stack trace, connection string veya secret sizintisi tamamen engellenir. API ve Web tarafinda `X-Powered-By` header'i kaldirilmis, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 0`, `Referrer-Policy: strict-origin-when-cross-origin`, production `HSTS` ve kamerayla uyumlu `Content-Security-Policy` eklenmistir. Hassas endpoint'ler (`/auth/dev-login`, `/attendance/check-in`, `/events/*/attendance-token`) per-IP rate limit ile korunur.
+
+
 ## Gelecekte AGU SSO Entegrasyon Noktasi
 
 SSO entegrasyonu auth modulunde adapter olarak eklenmelidir. Dev-login yalnizca gelistirme kolayligi icindir ve production'da kapali kalir. SSO'dan gelen kalici kullanici tanimlayicisi, e-posta ve profil bilgileri `User` kaydina map edilir. Roller ve kulup uyelikleri uygulama verisi olarak ayrica yonetilmeye devam eder.
