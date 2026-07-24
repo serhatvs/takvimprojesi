@@ -1,5 +1,7 @@
 import { QR_ATTENDANCE_TOKEN_TTL_SECONDS, getQrAttendanceSecret } from "@agu/config";
 import { BadRequestException, Injectable } from "@nestjs/common";
+// Note: Intentionally avoiding any logging of token values or secrets here for security reasons.
+
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export type QrAttendanceTokenPayload = {

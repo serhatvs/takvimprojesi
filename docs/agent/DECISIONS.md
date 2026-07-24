@@ -121,3 +121,13 @@
   - Gerekce: Arama yapılırken dahi etkinliğin toplam doluluk ve katılım metriklerinin tutarlı kalması garanti edildi.
 - Web `/club-dashboard/events/[eventId]/attendance-summary` route'u ve `AttendanceSummaryScreen` bileşeni eklendi.
   - Gerekce: Katılım raporunun, özet metrik kartlarının, öğrenci arama alanı ve semantik responsive katılımcı tablosunun kullanıcı dostu sunumu sağlandı.
+- Pilot hazırlık sertleştirme kapsamında merkezi `validateProductionEnv()` eklendi.
+  - Gerekce: `NODE_ENV=production` iken `DATABASE_URL`, min 32 karakter `AUTH_SESSION_SECRET`, min 32 karakter varsayılan olmayan `QR_ATTENDANCE_SECRET`, wildcard olmayan `WEB_ORIGIN` kontrol edilir. `ENABLE_DEV_AUTH=true` varsa API başlamaz. Hatalar tek seferde anlaşılır şekilde raporlanır ancak secret değerleri loglanmaz.
+- Güvenlik başlıkları (X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, production'da HSTS) Express middleware olarak `main.ts` ve Next.js `headers()` altında eklendi.
+  - Gerekce: Yeni ağır kütüphane eklemeden varsayılan güvenlik başlıkları framework özellikleri üzerinden uygulandı.
+- Hassas endpoint'ler (`/auth/dev-login`, `/attendance/check-in`, `/events/*/attendance-token`) için in-memory IP rate-limiter middleware eklendi.
+  - Gerekce: Tek-instance pilot kullanımı için kötüye kullanım engellenir, aşımda kontrollü 429 döndürülür.
+- Health ve readiness endpoint'leri ayrıldı: `GET /health` (process liveness) ve `GET /ready` (DB SELECT 1 readiness).
+  - Gerekce: Veritabanı kesintisinde liveness sağlam kalırken readiness 503 döner; orchestration/load balancer doğru yönlendirme yapar.
+- Production migration script'i `prisma migrate deploy` olarak eklendi.
+  - Gerekce: Production başlangıcında veritabanı sıfırlanması veya dev seed çalıştırılması engellenir.

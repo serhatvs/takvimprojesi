@@ -4,13 +4,23 @@ import cookieParser from "cookie-parser";
 import "reflect-metadata";
 import { AppModule } from "./app.module";
 import { loadRootEnv } from "./config/load-env";
+import { validateProductionEnv } from "./config/env-validation";
+import { securityHeaders } from "./middleware/security-headers.middleware";
+import { rateLimit } from "./middleware/rate-limit.middleware";
 
 async function bootstrap() {
   loadRootEnv();
+  validateProductionEnv();
+
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
+  app.use(securityHeaders);
+  app.use(rateLimit);
   app.enableCors({
-    origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
+    origin:
+      process.env.NODE_ENV === "production"
+        ? process.env.WEB_ORIGIN
+        : (process.env.WEB_ORIGIN ?? "http://localhost:3000"),
     credentials: true
   });
 

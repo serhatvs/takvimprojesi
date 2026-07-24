@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+// Security: No token values or session secrets are logged in this module.
 import type { Response } from "express";
 import { AUTH_SESSION_COOKIE_NAME, AUTH_SESSION_TTL_SECONDS } from "./auth.constants";
 

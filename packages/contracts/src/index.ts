@@ -36,6 +36,14 @@ export interface HealthResponse {
   checkedAt: string;
 }
 
+export interface ReadyResponse {
+  status: "ok" | "error";
+  service: "agu-api";
+  timeZone: string;
+  checkedAt: string;
+  error?: string;
+}
+
 export interface AuthClubMembership {
   clubId: string;
   clubSlug: string;

@@ -7,9 +7,10 @@ import { PressModule } from "./press/press.module";
 import { AttendanceModule } from "./attendance/attendance.module";
 import { HealthController } from "./health/health.controller";
 import { HealthService } from "./health/health.service";
+import { PrismaModule } from "./prisma/prisma.module";
 
 @Module({
-  imports: [AuthModule, EventsModule, ClubsModule, PressModule, AttendanceModule],
+  imports: [AuthModule, EventsModule, ClubsModule, PressModule, AttendanceModule, PrismaModule],
   controllers: [HealthController],
   providers: [HealthService, EventLifecycleService]
 })
