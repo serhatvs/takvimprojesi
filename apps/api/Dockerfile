@@ -80,7 +80,7 @@ RUN pnpm turbo run build --filter=@agu/api...
 # prod-deps: same as installer, but with devDependencies pruned away
 ################################################################################
 FROM installer AS prod-deps
-RUN pnpm prune --prod
+RUN CI=true pnpm prune --prod
 
 ################################################################################
 # api: the Cloud Run service image (default build target)
