@@ -62,7 +62,7 @@ COPY scripts ./scripts
 COPY tsconfig.base.json ./tsconfig.base.json
 COPY --from=pruner /app/out/json/ .
 # Turbo's generated workspace file can omit pnpm security settings such as
-# onlyBuiltDependencies. Restore the repository version before installation.
+# allowBuilds. Restore the repository version before installation.
 COPY pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
@@ -70,7 +70,10 @@ RUN pnpm install --frozen-lockfile
 # Now bring in the real source for @agu/api and its internal deps and build.
 COPY --from=pruner /app/out/full/ .
 
-RUN pnpm --filter @agu/api prisma:generate
+# Prisma config requires DATABASE_URL even for client generation. Use a
+# non-secret placeholder only for this build step; runtime receives the real
+# value from Secret Manager.
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" pnpm --filter @agu/api prisma:generate
 RUN pnpm turbo run build --filter=@agu/api...
 
 ################################################################################
