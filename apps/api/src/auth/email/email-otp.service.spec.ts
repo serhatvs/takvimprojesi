@@ -200,6 +200,31 @@ describe("EmailOtpService & Helpers", () => {
       });
     });
 
+    it("verifyCode throws DISPLAY_NAME_REQUIRED when new user omits displayName", async () => {
+      mockPrisma.emailLoginChallenge.findFirst.mockResolvedValue({
+        id: "ch-1",
+        email: "newstudent@agu.edu.tr",
+        expiresAt: new Date(Date.now() + 600000),
+        failedAttempts: 0,
+        otpHash: computeOtpHash("newstudent@agu.edu.tr", "123456")
+      });
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      try {
+        await service.verifyCode("newstudent@agu.edu.tr", "123456");
+        expect.fail("Should have thrown");
+      } catch (err: unknown) {
+        expect(err).toBeInstanceOf(BadRequestException);
+        expect((err as BadRequestException).getResponse()).toEqual({
+          code: "DISPLAY_NAME_REQUIRED",
+          message: "Yeni kullanıcılar için ad soyad zorunludur."
+        });
+      }
+
+      // Challenge must NOT be consumed yet
+      expect(mockPrisma.emailLoginChallenge.updateMany).not.toHaveBeenCalled();
+    });
+
     it("verifyCode creates new AGÜ user with STUDENT role", async () => {
       const code = "123456";
       const hash = computeOtpHash("newstudent@agu.edu.tr", code);

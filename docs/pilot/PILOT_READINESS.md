@@ -18,7 +18,7 @@ Bu belge AGÜ Kampüs Takvimi Faz 1 pilot sürüm öncesi güvenlik ve yayın ha
 |-------|-------|----------|
 | E-posta OTP Backend Temeli | ✅ HAZİR | `POST /auth/email/request-code` ve `POST /auth/email/verify-code` endpointleri, HMAC-SHA256 hashleme, cooldown, rate-limiting, domain bazlı `STUDENT`/`EXTERNAL_PARTICIPANT` otomatik rol atama ve `agu_session` cookie entegrasyonu tamamlandı. |
 | Production e-posta OTP teslimat sağlayıcısı | 🔴 KRİTİK BLOCKER | Production SMTP sunucusu, portu, kimlik bilgileri ve gönderici e-posta domaini henüz canlı ortamda yapılandırılmadı. |
-| Web OTP Giriş Ekranı | ⚠️ EKSİK | Backend OTP temeli hazır; Next.js web giriş ekranı ve OTP form bileşenleri sonraki görevde eklenecektir. |
+| Web OTP Giriş Ekranı | ✅ HAZİR | `/login` route'u, 3 adımlı E-posta/Kod/Ad Soyad form akışı, güvenli `returnTo` doğrulaması, `SiteHeader` oturum paneli, event registration ve QR check-in entegrasyonları tamamlandı. |
 | Session cookie güvenliği | ✅ HAZİR | HttpOnly, SameSite=Lax, production'da Secure. Token payload'ında yalnızca userId. |
 | Session secret doğrulaması | ✅ HAZİR | Startup'ta `AUTH_SESSION_SECRET` varlığı, minimum 32 karakter uzunluğu ve `.env.example` geliştirme değerinin kullanılmadığı doğrulanır. |
 

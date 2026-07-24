@@ -166,6 +166,15 @@ export function EventRegistrationPanel({ apiBaseUrl, eventId }: EventRegistratio
           Kayıt zamanı: <time>{view.registeredAtLabel}</time>
         </p>
       ) : null}
+      {state.kind === "anonymous" ? (
+        <Link
+          className="primary-action"
+          href={`/login?returnTo=/events/${encodeURIComponent(eventId)}`}
+          style={{ display: "inline-block", textDecoration: "none", textAlign: "center" }}
+        >
+          Giriş Yap
+        </Link>
+      ) : null}
       {view.showJoinButton ? (
         <button type="button" onClick={register} disabled={view.buttonDisabled}>
           Etkinliğe Katıl

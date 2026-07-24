@@ -2,6 +2,7 @@
 
 import type { AttendanceResponse, AuthMeResponse } from "@agu/contracts";
 import { StatusBadge } from "@agu/ui";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   buildCheckInSubmitPath,
@@ -246,9 +247,9 @@ export function CheckInPanel({ apiBaseUrl }: CheckInPanelProps) {
 
       <div className="check-in-actions">
         {state.kind === "anonymous" ? (
-          <a href="/auth/login" className="primary-action" style={{ display: "inline-block", textDecoration: "none", textAlign: "center" }}>
+          <Link href="/login?returnTo=/attendance/check-in" className="primary-action" style={{ display: "inline-block", textDecoration: "none", textAlign: "center" }}>
             Giriş Yap
-          </a>
+          </Link>
         ) : null}
         {state.kind === "success" ? (
           <button

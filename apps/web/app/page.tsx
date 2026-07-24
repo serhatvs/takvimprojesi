@@ -11,6 +11,8 @@ import {
   type RawSearchParams
 } from "./public-events";
 
+import { SiteHeader } from "./site-header";
+
 export const dynamic = "force-dynamic";
 
 async function getApiHealth(): Promise<HealthResponse | null> {
@@ -49,6 +51,7 @@ export default async function HomePage({
 
   return (
     <main className="page-shell">
+      <SiteHeader apiBaseUrl={apiBaseUrl} />
       <section className="intro">
         <p className="eyebrow">Kampus etkinlikleri</p>
         <h1>AGÜ Kampüs Takvimi</h1>

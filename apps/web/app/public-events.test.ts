@@ -431,7 +431,7 @@ describe("public event helpers", () => {
 
   it("shows the anonymous registration state without a join button", () => {
     expect(viewForRegistrationState({ kind: "anonymous" })).toMatchObject({
-      message: "Katılmak için öğrenci hesabıyla giriş yapmalısınız.",
+      message: "Etkinliğe kayıt olmak için giriş yapın.",
       showJoinButton: false
     });
   });

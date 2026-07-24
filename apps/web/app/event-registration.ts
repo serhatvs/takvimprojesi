@@ -93,7 +93,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       };
     case "anonymous":
       return {
-        message: "Katılmak için öğrenci hesabıyla giriş yapmalısınız.",
+        message: "Etkinliğe kayıt olmak için giriş yapın.",
         showJoinButton: false,
         showCheckInLink: false,
         buttonDisabled: false,

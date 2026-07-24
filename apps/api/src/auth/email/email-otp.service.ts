@@ -199,6 +199,20 @@ export class EmailOtpService {
       throw new BadRequestException("Kod geçersiz veya süresi dolmuş.");
     }
 
+    // Check if user already exists
+    const userInDb = await this.prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!userInDb) {
+      if (typeof displayNameInput !== "string" || !displayNameInput.trim()) {
+        throw new BadRequestException({
+          code: "DISPLAY_NAME_REQUIRED",
+          message: "Yeni kullanıcılar için ad soyad zorunludur."
+        });
+      }
+    }
+
     // Determine target role for new user or missing role
     const targetRole = isAguEmailDomain(email)
       ? RoleName.STUDENT
@@ -227,14 +241,7 @@ export class EmailOtpService {
       });
 
       if (!existingUser) {
-        if (
-          typeof displayNameInput !== "string" ||
-          !displayNameInput.trim()
-        ) {
-          throw new BadRequestException("Yeni kullanıcılar için ad soyad zorunludur.");
-        }
-
-        const sanitizedDisplayName = displayNameInput
+        const sanitizedDisplayName = (displayNameInput as string)
           .trim()
           .replace(/<[^>]*>/g, ""); // Basic strip HTML
 
