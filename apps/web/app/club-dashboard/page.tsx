@@ -117,6 +117,17 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
                     </Link>
                   </div>
                 )}
+                {item.status === "PUBLISHED" && (
+                  <div className="event-card-actions" style={{ marginTop: "var(--spacing-3)", marginBottom: "var(--spacing-2)" }}>
+                    <Link
+                      href={`/club-dashboard/events/${encodeURIComponent(item.id)}/attendance`}
+                      className="secondary-action"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <span>📱</span> Canlı QR Katılım Ekranı
+                    </Link>
+                  </div>
+                )}
                 <EventLifecycleControls
                   eventId={item.id}
                   eventTitle={item.title}

@@ -74,13 +74,69 @@ export function formatRemainingTime(totalSeconds: number): string {
   return `${seconds} saniye kaldı`;
 }
 
+export function shouldAutoRefreshAttendanceToken(
+  remainingSeconds: number,
+  refreshThresholdSeconds: number = 25
+): boolean {
+  return remainingSeconds <= refreshThresholdSeconds;
+}
+
+export type AttendanceWindowStatus = "NOT_PUBLISHED" | "NOT_OPEN_YET" | "CLOSED" | "OPEN";
+
+export function classifyAttendanceWindowStatus(
+  startsAt: string,
+  endsAt: string,
+  status: string,
+  now: Date = new Date()
+): AttendanceWindowStatus {
+  if (status !== "PUBLISHED") {
+    return "NOT_PUBLISHED";
+  }
+
+  const startsAtMs = new Date(startsAt).getTime();
+  const endsAtMs = new Date(endsAt).getTime();
+  const nowMs = now.getTime();
+
+  if (Number.isNaN(startsAtMs) || Number.isNaN(endsAtMs)) {
+    return "CLOSED";
+  }
+
+  const windowStartMs = startsAtMs - 30 * 60 * 1000;
+  const windowEndMs = endsAtMs + 30 * 60 * 1000;
+
+  if (nowMs < windowStartMs) {
+    return "NOT_OPEN_YET";
+  }
+
+  if (nowMs > windowEndMs) {
+    return "CLOSED";
+  }
+
+  return "OPEN";
+}
+
+export function messageForAttendanceWindowStatus(
+  windowStatus: AttendanceWindowStatus
+): string | null {
+  switch (windowStatus) {
+    case "NOT_PUBLISHED":
+      return "Yoklama QR’ı yalnızca yayınlanmış etkinlikler için oluşturulabilir.";
+    case "NOT_OPEN_YET":
+      return "Katılım penceresi henüz açılmadı. Etkinlik başlangıcına 30 dakika kala açılacaktır.";
+    case "CLOSED":
+      return "Katılım penceresi kapandı. Etkinlik bitişinden 30 dakika sonra kapanmıştır.";
+    case "OPEN":
+      return null;
+  }
+}
+
 export function messageForAttendanceQrError(status: number): string {
   if (status === 401) {
     return "Oturumunuz sona ermiş. Tekrar giriş yapın.";
   }
 
   if (status === 403) {
-    return "Bu etkinlik için yoklama QR’ı oluşturma yetkiniz yok.";
+    return "Bu etkinlik için yoklama QR’ı oluşturma yetkiniz bulunmuyor.";
   }
 
   if (status === 404) {

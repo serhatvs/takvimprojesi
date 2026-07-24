@@ -433,6 +433,54 @@ h1 {
   font-weight: 700;
 }
 
+.attendance-live-screen {
+  display: grid;
+  gap: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+.attendance-live-card {
+  display: grid;
+  gap: 20px;
+  border: 1px solid #d7dde3;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.attendance-live-qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #ffffff;
+  border: 2px solid #0b6f61;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 12px 0;
+}
+
+.attendance-live-qr-container svg {
+  width: min(100%, 280px);
+  height: auto;
+}
+
+.attendance-live-timer {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0b6f61;
+}
+
+.attendance-live-info {
+  font-size: 0.95rem;
+  color: #52616b;
+}
+
 .attendance-summary-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

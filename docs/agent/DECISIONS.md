@@ -93,3 +93,13 @@
   - Gerekce: Aynı öğrencinin eşzamanlı check-in isteklerinde yarış durumu oluşsa bile veritabanı seviyesinde tek bir `Attendance` kaydı oluşması sağlanır ve Prisma `P2002` hatası kontrollü `409 Conflict` cevabına dönüştürülür.
 - Başarılı check-in işlemi audit log kaydı (`EVENT_ATTENDANCE_RECORDED`) oluşturur, ancak audit metadata'sına token veya secret yazılmaz.
   - Gerekce: Audit kayıtlarının güvenliği için hassas token bilgileri audit verisinden hariç tutulur.
+- Organizatör canlı katılım QR ekranı `/club-dashboard/events/[eventId]/attendance` route'unda eklendi.
+  - Gerekce: Yetkili kulüp yöneticisi etkinliği projeksiyon veya canlı ekranda yayınlayarak katılımcılara dinamik QR kod sunabilir.
+- Token asla `localStorage`, `sessionStorage`, cookie veya URL query string'ine yazılmaz, console veya analytics loglarına aktarılmaz.
+  - Gerekce: Token sızıntısı riskini engellemek için ham token yalnızca React component state'inde tutulur ve unmount ile silinir.
+- Otomatik yenileme backend yanıtındaki `expiresAt` alanından dinamik hesaplanan kalan süreye göre çalışır (kalan süre <= 25s olduğunda veya süre dolduğunda otomatik yenilenir).
+  - Gerekce: Sabit zamanlayıcılar ağ gecikmesi ve istemci saat farklarında sorun yaratabilir; `expiresAt` tabanlı hesaplama güvenli yenilemeyi garanti eder.
+- Sayfa gizlendiğinde (`document.hidden`) yenileme istekleri duraklatılır, sayfa tekrar görünür olduğunda token süresi kontrol edilip gerekirse anında yenilenir.
+  - Gerekce: Sekme arka plandayken sunucuya gereksiz istek yağdırmayı engeller ve istemci kaynaklarını korur.
+- QR görsel üretimi için `@agu/web` altında `qrcode.react` (`QRCodeSVG`) kullanıldı.
+  - Gerekce: Hafif, bakımı kolay ve SVG tabanlı responsive QR üretimi sunar.

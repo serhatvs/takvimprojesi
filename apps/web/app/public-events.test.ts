@@ -19,10 +19,13 @@ import {
 import {
   buildAttendanceTokenPath,
   canManageAttendanceQr,
+  classifyAttendanceWindowStatus,
   createAttendanceQrPayload,
   formatRemainingTime,
   messageForAttendanceQrError,
+  messageForAttendanceWindowStatus,
   secondsUntilExpiry,
+  shouldAutoRefreshAttendanceToken,
   viewForAttendanceQrState
 } from "./attendance-qr";
 import {
@@ -549,7 +552,7 @@ describe("public event helpers", () => {
   it("maps attendance QR errors to controlled messages", () => {
     expect(messageForAttendanceQrError(401)).toBe("Oturumunuz sona ermiş. Tekrar giriş yapın.");
     expect(messageForAttendanceQrError(403)).toBe(
-      "Bu etkinlik için yoklama QR’ı oluşturma yetkiniz yok."
+      "Bu etkinlik için yoklama QR’ı oluşturma yetkiniz bulunmuyor."
     );
     expect(messageForAttendanceQrError(404)).toBe(
       "Etkinlik bulunamadı veya artık kullanılamıyor."
@@ -896,5 +899,35 @@ describe("public event helpers", () => {
   it("does not apply late attendance summary responses after unmount", () => {
     expect(shouldApplyAttendanceSummaryResponse(false)).toBe(false);
     expect(shouldApplyAttendanceSummaryResponse(true)).toBe(true);
+  });
+
+  it("classifies attendance window states correctly", () => {
+    const startsAt = "2026-07-24T10:00:00.000Z";
+    const endsAt = "2026-07-24T12:00:00.000Z";
+
+    expect(classifyAttendanceWindowStatus(startsAt, endsAt, "DRAFT")).toBe("NOT_PUBLISHED");
+
+    const beforeWindow = new Date("2026-07-24T09:00:00.000Z");
+    expect(classifyAttendanceWindowStatus(startsAt, endsAt, "PUBLISHED", beforeWindow)).toBe("NOT_OPEN_YET");
+
+    const insideWindow = new Date("2026-07-24T09:45:00.000Z");
+    expect(classifyAttendanceWindowStatus(startsAt, endsAt, "PUBLISHED", insideWindow)).toBe("OPEN");
+
+    const afterWindow = new Date("2026-07-24T13:00:00.000Z");
+    expect(classifyAttendanceWindowStatus(startsAt, endsAt, "PUBLISHED", afterWindow)).toBe("CLOSED");
+  });
+
+  it("maps attendance window statuses to clear Turkish user messages", () => {
+    expect(messageForAttendanceWindowStatus("NOT_PUBLISHED")).toContain("yalnızca yayınlanmış etkinlikler");
+    expect(messageForAttendanceWindowStatus("NOT_OPEN_YET")).toContain("30 dakika kala");
+    expect(messageForAttendanceWindowStatus("CLOSED")).toContain("30 dakika sonra kapanmıştır");
+    expect(messageForAttendanceWindowStatus("OPEN")).toBeNull();
+  });
+
+  it("triggers auto-refresh when token remaining time reaches 25 seconds or less", () => {
+    expect(shouldAutoRefreshAttendanceToken(30)).toBe(false);
+    expect(shouldAutoRefreshAttendanceToken(25)).toBe(true);
+    expect(shouldAutoRefreshAttendanceToken(10)).toBe(true);
+    expect(shouldAutoRefreshAttendanceToken(0)).toBe(true);
   });
 });
