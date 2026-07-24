@@ -12,11 +12,15 @@ export const EMAIL_OTP_RESEND_COOLDOWN_SECONDS = 60;
 export const EMAIL_OTP_MAX_FAILED_ATTEMPTS = 5;
 
 export function getApiBaseUrl(): string {
-  const runtime = globalThis as {
-    process?: { env?: Record<string, string | undefined> };
-  };
-
-  return runtime.process?.env?.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+  // Keep these as direct process.env references. Next.js only inlines
+  // NEXT_PUBLIC_* variables into browser/server bundles when it can detect
+  // the property statically; indirect globalThis/process access falls back
+  // to localhost in the production image.
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://localhost:3001"
+  );
 }
 
 export function getQrAttendanceSecret(): string {
