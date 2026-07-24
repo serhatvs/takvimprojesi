@@ -88,7 +88,12 @@ export default async function EventDetailPage({ params, searchParams }: EventDet
         </Link>
         <p className="eyebrow">{event.clubName}</p>
         <h1>{event.title}</h1>
-        <StatusBadge tone="success">{event.statusLabel}</StatusBadge>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <StatusBadge tone={event.participationScope === "EXTERNAL_ALLOWED" ? "success" : "neutral"}>
+            {event.scopeLabel}
+          </StatusBadge>
+          <StatusBadge tone="success">{event.statusLabel}</StatusBadge>
+        </div>
       </section>
 
       <section className="detail-layout" aria-labelledby="event-detail-heading">

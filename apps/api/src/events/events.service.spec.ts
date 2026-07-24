@@ -446,6 +446,7 @@ describe("EventsService", () => {
     location: "AGU Buyuk Amfi",
     capacity: 100,
     status: "PUBLISHED",
+    participationScope: "AGU_ONLY",
     publishedAt: new Date("2026-07-23T12:00:00.000Z"),
     club: {
       id: "club-id",
@@ -870,8 +871,13 @@ describe("EventsService", () => {
     );
 
     expect(registration).toMatchObject({
-      eventId: "11111111-1111-4111-8111-111111111111",
-      userId: student.userId
+      registered: true,
+      eligible: true,
+      eligibilityCode: "registered",
+      registration: {
+        eventId: "11111111-1111-4111-8111-111111111111",
+        userId: student.userId
+      }
     });
     expect(prisma.eventRegistration.findUnique).toHaveBeenCalledWith({
       where: {
@@ -883,12 +889,17 @@ describe("EventsService", () => {
     });
   });
 
-  it("returns null when the authenticated student has no registration", async () => {
+  it("returns registered: false when the authenticated student has no registration", async () => {
     const { service } = createService({ registrationStatusRegistration: false });
 
     await expect(
       service.getEventRegistrationStatus(student, "11111111-1111-4111-8111-111111111111")
-    ).resolves.toBeNull();
+    ).resolves.toEqual({
+      registered: false,
+      eligible: true,
+      eligibilityCode: "eligible",
+      registration: null
+    });
   });
 
   it("rejects registration status for users without the student role", async () => {

@@ -42,6 +42,11 @@ const users = [
     email: "admin.dev@agu.edu.tr",
     displayName: "Dev System Admin",
     roles: [RoleName.SYSTEM_ADMIN]
+  },
+  {
+    email: "external.participant@example.com",
+    displayName: "Dev External Participant",
+    roles: [RoleName.EXTERNAL_PARTICIPANT]
   }
 ];
 
@@ -111,6 +116,7 @@ async function main() {
       description: "Taslak durumdaki ornek etkinlik.",
       location: "AGU Konferans Salonu",
       status: "DRAFT",
+      participationScope: "AGU_ONLY",
       startsAt: new Date("2026-10-01T10:00:00.000Z"),
       endsAt: new Date("2026-10-01T12:00:00.000Z"),
       capacity: 80
@@ -128,6 +134,7 @@ async function main() {
       description: "Kampus takviminde yayinlanmis ornek etkinlik.",
       location: "AGU Ogrenci Merkezi",
       status: "PUBLISHED",
+      participationScope: "AGU_ONLY",
       startsAt: new Date("2026-10-10T14:00:00.000Z"),
       endsAt: new Date("2026-10-10T16:00:00.000Z"),
       registrationOpensAt: new Date("2026-09-20T08:00:00.000Z"),

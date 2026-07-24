@@ -1,3 +1,5 @@
+import type { EventParticipationScope } from "@agu/contracts";
+
 export type CreateDraftEventDto = {
   [key: string]: unknown;
   clubId?: unknown;
@@ -7,6 +9,7 @@ export type CreateDraftEventDto = {
   endsAt?: unknown;
   location?: unknown;
   capacity?: unknown;
+  participationScope?: unknown;
 };
 
 export type ValidCreateDraftEventInput = {
@@ -17,4 +20,5 @@ export type ValidCreateDraftEventInput = {
   endsAt: Date;
   location: string;
   capacity: number | null;
+  participationScope: EventParticipationScope;
 };

@@ -130,7 +130,12 @@ export default async function HomePage({
                   <article className="event-card" key={card.id}>
                     <div className="event-card-header">
                       <p>{card.clubName}</p>
-                      <StatusBadge tone="success">{card.statusLabel}</StatusBadge>
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <StatusBadge tone={card.participationScope === "EXTERNAL_ALLOWED" ? "success" : "neutral"}>
+                          {card.scopeLabel}
+                        </StatusBadge>
+                        <StatusBadge tone="success">{card.statusLabel}</StatusBadge>
+                      </div>
                     </div>
                     <h3>
                       <Link

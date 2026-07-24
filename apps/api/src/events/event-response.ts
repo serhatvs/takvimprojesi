@@ -13,7 +13,16 @@ import type { AttendanceSummaryMetrics } from "./attendance-summary";
 
 export type PublicEventRecord = Pick<
   Event,
-  "id" | "title" | "description" | "startsAt" | "endsAt" | "location" | "capacity" | "status" | "publishedAt"
+  | "id"
+  | "title"
+  | "description"
+  | "startsAt"
+  | "endsAt"
+  | "location"
+  | "capacity"
+  | "status"
+  | "participationScope"
+  | "publishedAt"
 > & {
   club: {
     id: string;
@@ -34,6 +43,7 @@ export function toEventResponse(event: Event): EventResponse {
     location: event.location,
     capacity: event.capacity,
     status: event.status,
+    participationScope: event.participationScope,
     publishedAt: event.publishedAt?.toISOString() ?? null,
     createdAt: event.createdAt.toISOString(),
     updatedAt: event.updatedAt.toISOString()
@@ -57,6 +67,7 @@ export function toPublicEventListItem(event: PublicEventRecord): PublicEventList
     location: event.location,
     capacity: event.capacity,
     status: "PUBLISHED",
+    participationScope: event.participationScope,
     publishedAt: event.publishedAt?.toISOString() ?? null,
     club: {
       id: event.club.id,
@@ -105,7 +116,9 @@ export function toAttendanceResponse(attendance: Attendance): AttendanceResponse
 }
 
 export function toEventAttendanceSummaryResponse(input: {
-  event: Pick<Event, "id" | "title" | "status" | "startsAt" | "endsAt" | "capacity">;
+  event: Pick<Event, "id" | "title" | "status" | "startsAt" | "endsAt" | "capacity"> & {
+    participationScope?: Event["participationScope"];
+  };
   metrics: AttendanceSummaryMetrics;
   attendees: Array<{
     userId: string;
@@ -113,6 +126,7 @@ export function toEventAttendanceSummaryResponse(input: {
     email: string;
     registeredAt: string;
     checkedInAt: string;
+    participantType?: "AGU" | "EXTERNAL";
   }>;
   pagination: {
     page: number;
@@ -129,7 +143,10 @@ export function toEventAttendanceSummaryResponse(input: {
       status: input.event.status,
       startsAt: input.event.startsAt.toISOString(),
       endsAt: input.event.endsAt.toISOString(),
-      capacity: input.event.capacity
+      capacity: input.event.capacity,
+      ...(input.event.participationScope
+        ? { participationScope: input.event.participationScope }
+        : {})
     },
     summary: input.metrics,
     metrics: input.metrics,

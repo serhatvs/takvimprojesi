@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   buildRegistrationStatusPath,
   buildRegistrationSubmitPath,
-  hasStudentRole,
+  hasParticipantRole,
   messageForRegistrationConflict,
   stateFromRegistrationStatus,
   viewForRegistrationState,
@@ -62,7 +62,7 @@ export function EventRegistrationPanel({ apiBaseUrl, eventId }: EventRegistratio
         }
 
         const me = (await meResponse.json()) as AuthMeResponse;
-        if (!hasStudentRole(me.user)) {
+        if (!hasParticipantRole(me.user)) {
           setState({ kind: "forbidden" });
           return;
         }

@@ -74,14 +74,14 @@ export function parseCheckInQrPayload(rawPayload: string): ParsedCheckInPayload 
 }
 
 export function hasCheckInAccess(user: AuthPrincipal): boolean {
-  return user.globalRoles.includes("STUDENT");
+  return user.globalRoles.includes("STUDENT") || user.globalRoles.includes("EXTERNAL_PARTICIPANT");
 }
 
 export function buildCheckInSubmitPath(_eventId?: string): string {
   return `/attendance/check-in`;
 }
 
-export function messageForCheckInResponse(status: number): string {
+export function messageForCheckInResponse(status: number, apiMessage?: string): string {
   if (status === 400) {
     return "QR kod geçersiz veya süresi dolmuş.";
   }
@@ -91,6 +91,9 @@ export function messageForCheckInResponse(status: number): string {
   }
 
   if (status === 403) {
+    if (apiMessage && (apiMessage.includes("AGÜ") || apiMessage.includes("AGU"))) {
+      return "Bu yoklama yalnızca AGÜ katılımcılarına açıktır.";
+    }
     return "Bu etkinlik için yoklama verme yetkiniz veya kaydınız bulunmuyor.";
   }
 

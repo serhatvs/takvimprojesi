@@ -3,10 +3,18 @@ export const USER_ROLES = [
   "CLUB_MEMBER",
   "CLUB_ADMIN",
   "PRESS_EDITOR",
-  "SYSTEM_ADMIN"
+  "SYSTEM_ADMIN",
+  "EXTERNAL_PARTICIPANT"
 ] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
+
+export const EVENT_PARTICIPATION_SCOPES = [
+  "AGU_ONLY",
+  "EXTERNAL_ALLOWED"
+] as const;
+
+export type EventParticipationScope = (typeof EVENT_PARTICIPATION_SCOPES)[number];
 
 export const EVENT_STATUSES = [
   "DRAFT",
@@ -80,6 +88,7 @@ export interface CreateDraftEventRequest {
   endsAt: string;
   location: string;
   capacity?: number;
+  participationScope?: EventParticipationScope;
 }
 
 export interface DraftEventResponse {
@@ -93,6 +102,7 @@ export interface DraftEventResponse {
   location: string;
   capacity: number | null;
   status: "DRAFT";
+  participationScope: EventParticipationScope;
   createdAt: string;
   updatedAt: string;
 }
@@ -108,6 +118,7 @@ export interface EventResponse {
   location: string;
   capacity: number | null;
   status: EventStatus;
+  participationScope: EventParticipationScope;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -132,6 +143,7 @@ export interface PublicEventListItem {
   location: string;
   capacity: number | null;
   status: "PUBLISHED";
+  participationScope: EventParticipationScope;
   publishedAt: string | null;
   club: PublicEventClub;
 }
@@ -145,6 +157,7 @@ export interface PublicEventDetailResponse {
   location: string;
   capacity: number | null;
   status: "PUBLISHED";
+  participationScope: EventParticipationScope;
   publishedAt: string | null;
   club: PublicEventClub;
 }
@@ -168,8 +181,17 @@ export interface EventRegistrationResponse {
   registeredAt: string;
 }
 
+export type RegistrationEligibilityCode =
+  | "eligible"
+  | "not-eligible"
+  | "registered"
+  | "registration-closed"
+  | "capacity-full";
+
 export interface EventRegistrationStatusResponse {
   registered: boolean;
+  eligible?: boolean;
+  eligibilityCode?: RegistrationEligibilityCode;
   registration: EventRegistrationResponse | null;
 }
 
@@ -192,6 +214,7 @@ export interface EventAttendanceSummaryAttendee {
   email: string;
   registeredAt: string;
   checkedInAt: string;
+  participantType?: "AGU" | "EXTERNAL";
 }
 
 export interface EventAttendanceSummaryMetrics {
@@ -213,6 +236,7 @@ export interface EventAttendanceSummaryResponse {
     startsAt: string;
     endsAt: string;
     capacity: number | null;
+    participationScope?: EventParticipationScope;
   };
   summary: EventAttendanceSummaryMetrics;
   metrics: EventAttendanceSummaryMetrics;
@@ -240,6 +264,7 @@ export interface ClubEventListItem {
   location: string;
   capacity: number | null;
   status: EventStatus;
+  participationScope: EventParticipationScope;
   publishedAt: string | null;
   updatedAt: string;
 }
@@ -283,6 +308,7 @@ export interface PressEventListItem {
   title: string;
   description: string;
   status: "SUBMITTED";
+  participationScope: EventParticipationScope;
   startsAt: string;
   endsAt: string;
   location: string;
@@ -302,6 +328,7 @@ export interface PressApprovedEventListItem {
   title: string;
   description: string;
   status: "APPROVED";
+  participationScope: EventParticipationScope;
   startsAt: string;
   endsAt: string;
   location: string;
@@ -329,6 +356,7 @@ export interface EventRevisionDetail {
   title: string;
   description: string;
   status: "CHANGES_REQUESTED";
+  participationScope: EventParticipationScope;
   startsAt: string;
   endsAt: string;
   location: string;
@@ -358,6 +386,7 @@ export interface UpdateEventRevisionRequest {
   endsAt: string;
   location: string;
   capacity?: number | null;
+  participationScope?: EventParticipationScope;
 }
 
 export interface CancelEventRequest {

@@ -29,6 +29,7 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
   const [startsAtLocal, setStartsAtLocal] = useState("");
   const [endsAtLocal, setEndsAtLocal] = useState("");
   const [capacityRaw, setCapacityRaw] = useState("");
+  const [participationScope, setParticipationScope] = useState<"AGU_ONLY" | "EXTERNAL_ALLOWED">("AGU_ONLY");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -70,7 +71,8 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
         description: description.trim(),
         location: location.trim(),
         startsAt,
-        endsAt
+        endsAt,
+        participationScope
       };
 
       if (capResult.value !== undefined) {
@@ -196,6 +198,21 @@ export function CreateEventForm({ clubs, initialClubId, apiBaseUrl }: CreateEven
             className="form-input"
           />
         </div>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="participationScope">Katılım Kapsamı</label>
+        <select
+          id="participationScope"
+          name="participationScope"
+          value={participationScope}
+          onChange={(e) => setParticipationScope(e.target.value as "AGU_ONLY" | "EXTERNAL_ALLOWED")}
+          required
+          className="form-input"
+        >
+          <option value="AGU_ONLY">AGÜ Katılımcılarına Özel (AGU_ONLY)</option>
+          <option value="EXTERNAL_ALLOWED">Dış Katılıma Açık (EXTERNAL_ALLOWED)</option>
+        </select>
       </div>
 
       <div className="form-group">

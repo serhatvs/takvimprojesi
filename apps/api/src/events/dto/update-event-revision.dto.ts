@@ -1,3 +1,5 @@
+import type { EventParticipationScope } from "@agu/contracts";
+
 export type UpdateEventRevisionDto = {
   [key: string]: unknown;
   title?: unknown;
@@ -6,6 +8,7 @@ export type UpdateEventRevisionDto = {
   endsAt?: unknown;
   location?: unknown;
   capacity?: unknown;
+  participationScope?: unknown;
 };
 
 export type ValidUpdateEventRevisionInput = {
@@ -15,4 +18,5 @@ export type ValidUpdateEventRevisionInput = {
   endsAt: Date;
   location: string;
   capacity: number | null;
+  participationScope: EventParticipationScope;
 };

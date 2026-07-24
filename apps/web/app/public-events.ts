@@ -1,5 +1,6 @@
 import { DEFAULT_TIME_ZONE, getApiBaseUrl } from "@agu/config";
 import type {
+  EventParticipationScope,
   PublicEventDetailResponse,
   PublicEventListItem,
   PublicEventListResponse
@@ -69,6 +70,8 @@ export type EventCardViewModel = {
   description: string;
   capacityLabel: string | null;
   statusLabel: "Yayında";
+  participationScope: EventParticipationScope;
+  scopeLabel: "AGÜ Katılımcılarına Özel" | "Dış Katılıma Açık";
 };
 
 export type EventDetailViewModel = {
@@ -82,6 +85,8 @@ export type EventDetailViewModel = {
   capacityLabel: string | null;
   publishedAtLabel: string | null;
   statusLabel: "Yayında";
+  participationScope: EventParticipationScope;
+  scopeLabel: "AGÜ Katılımcılarına Özel" | "Dış Katılıma Açık";
 };
 
 const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
@@ -262,6 +267,12 @@ export function formatEventDateTime(isoValue: string): string {
   return dateFormatter.format(new Date(isoValue));
 }
 
+export function formatParticipationScopeLabel(
+  scope?: EventParticipationScope
+): "AGÜ Katılımcılarına Özel" | "Dış Katılıma Açık" {
+  return scope === "EXTERNAL_ALLOWED" ? "Dış Katılıma Açık" : "AGÜ Katılımcılarına Özel";
+}
+
 export function toEventCardViewModel(event: PublicEventListItem): EventCardViewModel {
   return {
     id: event.id,
@@ -272,7 +283,9 @@ export function toEventCardViewModel(event: PublicEventListItem): EventCardViewM
     location: event.location,
     description: event.description,
     capacityLabel: event.capacity === null ? null : `${event.capacity} kisilik kapasite`,
-    statusLabel: "Yayında"
+    statusLabel: "Yayında",
+    participationScope: event.participationScope ?? "AGU_ONLY",
+    scopeLabel: formatParticipationScopeLabel(event.participationScope)
   };
 }
 
@@ -287,7 +300,9 @@ export function toEventDetailViewModel(event: PublicEventDetailResponse): EventD
     description: event.description,
     capacityLabel: event.capacity === null ? null : `${event.capacity} kisilik kapasite`,
     publishedAtLabel: event.publishedAt ? formatEventDateTime(event.publishedAt) : null,
-    statusLabel: "Yayında"
+    statusLabel: "Yayında",
+    participationScope: event.participationScope ?? "AGU_ONLY",
+    scopeLabel: formatParticipationScopeLabel(event.participationScope)
   };
 }
 

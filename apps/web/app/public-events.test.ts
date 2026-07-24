@@ -54,6 +54,7 @@ import {
   buildPublicEventsReturnHref,
   createEventMetadataDescription,
   formatEventDateTime,
+  formatParticipationScopeLabel,
   loadPublicEventDetail,
   parsePublicEventFilters,
   toEventCardViewModel,
@@ -69,6 +70,7 @@ const publicEvent: PublicEventListItem = {
   location: "AGU Buyuk Amfi",
   capacity: 100,
   status: "PUBLISHED",
+  participationScope: "AGU_ONLY",
   publishedAt: "2026-07-23T12:00:00.000Z",
   club: {
     id: "club-1",
@@ -324,6 +326,12 @@ describe("public event helpers", () => {
     expect(formatEventDateTime("2026-08-10T11:00:00.000Z")).toBe(
       "10 Ağustos 2026 Pazartesi 14:00"
     );
+  });
+
+  it("formats participation scope labels correctly", () => {
+    expect(formatParticipationScopeLabel("EXTERNAL_ALLOWED")).toBe("Dış Katılıma Açık");
+    expect(formatParticipationScopeLabel("AGU_ONLY")).toBe("AGÜ Katılımcılarına Özel");
+    expect(formatParticipationScopeLabel(undefined)).toBe("AGÜ Katılımcılarına Özel");
   });
 
   it("maps a public detail response to detail data", () => {

@@ -62,10 +62,12 @@ export class EventsController {
     @CurrentUser() principal: Principal,
     @Param("eventId") eventId: string
   ) {
-    const registration = await this.eventsService.getEventRegistrationStatus(principal, eventId);
+    const status = await this.eventsService.getEventRegistrationStatus(principal, eventId);
     return {
-      registered: registration !== null,
-      registration: registration ? toEventRegistrationResponse(registration) : null
+      registered: status.registered,
+      eligible: status.eligible,
+      eligibilityCode: status.eligibilityCode,
+      registration: status.registration ? toEventRegistrationResponse(status.registration) : null
     };
   }
 

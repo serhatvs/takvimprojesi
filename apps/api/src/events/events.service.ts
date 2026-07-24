@@ -33,6 +33,7 @@ const PUBLIC_EVENT_SELECT = {
   location: true,
   capacity: true,
   status: true,
+  participationScope: true,
   publishedAt: true,
   club: {
     select: {
@@ -126,7 +127,8 @@ export class EventsService {
         endsAt: input.endsAt,
         location: input.location,
         capacity: input.capacity,
-        status: "DRAFT"
+        status: "DRAFT",
+        participationScope: input.participationScope
       }
     });
   }
@@ -217,6 +219,7 @@ export class EventsService {
         title: true,
         description: true,
         status: true,
+        participationScope: true,
         startsAt: true,
         endsAt: true,
         location: true,
@@ -263,6 +266,7 @@ export class EventsService {
         title: event.title,
         description: event.description,
         status: "CHANGES_REQUESTED" as const,
+        participationScope: event.participationScope,
         startsAt: event.startsAt.toISOString(),
         endsAt: event.endsAt.toISOString(),
         location: event.location,
@@ -325,7 +329,8 @@ export class EventsService {
           startsAt: input.startsAt,
           endsAt: input.endsAt,
           location: input.location,
-          capacity: input.capacity
+          capacity: input.capacity,
+          participationScope: input.participationScope
         }
       });
 
@@ -342,7 +347,15 @@ export class EventsService {
           before: { status: "CHANGES_REQUESTED" },
           after: { status: "CHANGES_REQUESTED" },
           metadata: {
-            updatedFields: ["title", "description", "startsAt", "endsAt", "location", "capacity"]
+            updatedFields: [
+              "title",
+              "description",
+              "startsAt",
+              "endsAt",
+              "location",
+              "capacity",
+              "participationScope"
+            ]
           }
         }
       });
@@ -530,6 +543,7 @@ export class EventsService {
     const startsAt = this.requiredIsoDate(dto.startsAt, "startsAt");
     const endsAt = this.requiredIsoDate(dto.endsAt, "endsAt");
     const capacity = this.optionalPositiveInteger(dto.capacity, "capacity");
+    const participationScope = this.validateParticipationScope(dto.participationScope);
 
     if (startsAt >= endsAt) {
       throw new BadRequestException("startsAt must be before endsAt.");
@@ -541,7 +555,8 @@ export class EventsService {
       startsAt,
       endsAt,
       location,
-      capacity
+      capacity,
+      participationScope
     };
   }
 
@@ -698,8 +713,11 @@ export class EventsService {
   async registerForEvent(principal: Principal, eventId: string) {
     this.assertValidEventId(eventId);
 
-    if (!principal.globalRoles.includes("STUDENT")) {
-      throw new ForbiddenException("Only students can register for events.");
+    const isStudent = principal.globalRoles.includes("STUDENT");
+    const isExternal = principal.globalRoles.includes("EXTERNAL_PARTICIPANT");
+
+    if (!isStudent && !isExternal) {
+      throw new ForbiddenException("Only students and external participants can register for events.");
     }
 
     try {
@@ -714,12 +732,17 @@ export class EventsService {
           select: {
             id: true,
             startsAt: true,
-            capacity: true
+            capacity: true,
+            participationScope: true
           }
         });
 
         if (!event) {
           throw new NotFoundException("Event was not found.");
+        }
+
+        if (event.participationScope === "AGU_ONLY" && !isStudent) {
+          throw new ForbiddenException("This event is restricted to AGU students.");
         }
 
         if (event.startsAt <= new Date()) {
@@ -769,8 +792,11 @@ export class EventsService {
   async getEventRegistrationStatus(principal: Principal, eventId: string) {
     this.assertValidEventId(eventId);
 
-    if (!principal.globalRoles.includes("STUDENT")) {
-      throw new ForbiddenException("Only students can view event registration status.");
+    const isStudent = principal.globalRoles.includes("STUDENT");
+    const isExternal = principal.globalRoles.includes("EXTERNAL_PARTICIPANT");
+
+    if (!isStudent && !isExternal) {
+      throw new ForbiddenException("Only students or external participants can view registration status.");
     }
 
     const event = await this.prisma.event.findFirst({
@@ -778,14 +804,19 @@ export class EventsService {
         id: eventId,
         status: "PUBLISHED"
       },
-      select: { id: true }
+      select: {
+        id: true,
+        participationScope: true,
+        startsAt: true,
+        capacity: true
+      }
     });
 
     if (!event) {
       throw new NotFoundException("Event was not found.");
     }
 
-    return this.prisma.eventRegistration.findUnique({
+    const registration = await this.prisma.eventRegistration.findUnique({
       where: {
         eventId_userId: {
           eventId,
@@ -793,6 +824,26 @@ export class EventsService {
         }
       }
     });
+
+    const isEligible =
+      event.participationScope === "AGU_ONLY" ? isStudent : isStudent || isExternal;
+
+    let eligibilityCode: import("@agu/contracts").RegistrationEligibilityCode = "eligible";
+
+    if (registration) {
+      eligibilityCode = "registered";
+    } else if (!isEligible) {
+      eligibilityCode = "not-eligible";
+    } else if (event.startsAt <= new Date()) {
+      eligibilityCode = "registration-closed";
+    }
+
+    return {
+      registered: registration !== null,
+      eligible: isEligible,
+      eligibilityCode,
+      registration
+    };
   }
 
   async issueAttendanceToken(principal: Principal, eventId: string) {
@@ -1011,6 +1062,9 @@ export class EventsService {
             select: {
               displayName: true,
               email: true,
+              roles: {
+                select: { role: true }
+              },
               registrations: {
                 where: { eventId, cancelledAt: null },
                 select: { registeredAt: true },
@@ -1028,13 +1082,18 @@ export class EventsService {
       })
     ]);
 
-    const attendees = attendances.map((att) => ({
-      userId: att.userId,
-      displayName: att.user.displayName,
-      email: att.user.email,
-      registeredAt: (att.user.registrations[0]?.registeredAt ?? att.checkedInAt).toISOString(),
-      checkedInAt: att.checkedInAt.toISOString()
-    }));
+    const attendees = attendances.map((att) => {
+      const roles = att.user.roles.map((r) => r.role);
+      const isExternal = roles.includes("EXTERNAL_PARTICIPANT") && !roles.includes("STUDENT");
+      return {
+        userId: att.userId,
+        displayName: att.user.displayName,
+        email: att.user.email,
+        registeredAt: (att.user.registrations[0]?.registeredAt ?? att.checkedInAt).toISOString(),
+        checkedInAt: att.checkedInAt.toISOString(),
+        participantType: isExternal ? ("EXTERNAL" as const) : ("AGU" as const)
+      };
+    });
 
     return {
       event,
@@ -1062,6 +1121,7 @@ export class EventsService {
     const startsAt = this.requiredIsoDate(dto.startsAt, "startsAt");
     const endsAt = this.requiredIsoDate(dto.endsAt, "endsAt");
     const capacity = this.optionalPositiveInteger(dto.capacity, "capacity");
+    const participationScope = this.validateParticipationScope(dto.participationScope);
 
     if (startsAt >= endsAt) {
       throw new BadRequestException("startsAt must be before endsAt.");
@@ -1074,8 +1134,26 @@ export class EventsService {
       startsAt,
       endsAt,
       location,
-      capacity
+      capacity,
+      participationScope
     };
+  }
+
+  private validateParticipationScope(
+    value: unknown
+  ): import("@agu/contracts").EventParticipationScope {
+    if (value === undefined || value === null || value === "") {
+      return "AGU_ONLY";
+    }
+
+    if (
+      typeof value !== "string" ||
+      !["AGU_ONLY", "EXTERNAL_ALLOWED"].includes(value)
+    ) {
+      throw new BadRequestException("participationScope must be AGU_ONLY or EXTERNAL_ALLOWED.");
+    }
+
+    return value as import("@agu/contracts").EventParticipationScope;
   }
 
   private requiredString(value: unknown, field: string): string {

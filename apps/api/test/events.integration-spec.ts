@@ -36,10 +36,12 @@ describe("POST /events", () => {
   let pressCookie: string;
   let systemAdminCookie: string;
   let otherClubAdminCookie: string;
+  let externalCookie: string;
   let clubAdminId: string;
   let studentId: string;
   let clubMemberId: string;
   let pressEditorId: string;
+  let externalUserId: string;
 
   beforeAll(async () => {
     loadRootEnv();
@@ -100,6 +102,7 @@ describe("POST /events", () => {
       create: {
         email: "events.other.admin.dev@agu.edu.tr",
         displayName: "Events Other Club Admin",
+        isActive: true,
         roles: {
           create: [{ role: RoleName.STUDENT }, { role: RoleName.CLUB_MEMBER }, { role: RoleName.CLUB_ADMIN }]
         }
@@ -113,13 +116,38 @@ describe("POST /events", () => {
           clubId: otherClubId
         }
       },
-      update: { role: "ADMIN", isActive: true },
+      update: {
+        role: "ADMIN",
+        isActive: true
+      },
       create: {
         userId: otherClubAdmin.id,
         clubId: otherClubId,
-        role: "ADMIN"
+        role: "ADMIN",
+        isActive: true
       }
     });
+
+    const externalUser = await prisma.user.upsert({
+      where: { email: "external.participant@example.com" },
+      update: {
+        displayName: "External Participant Test User",
+        isActive: true,
+        roles: {
+          deleteMany: {},
+          create: [{ role: RoleName.EXTERNAL_PARTICIPANT }]
+        }
+      },
+      create: {
+        email: "external.participant@example.com",
+        displayName: "External Participant Test User",
+        isActive: true,
+        roles: {
+          create: [{ role: RoleName.EXTERNAL_PARTICIPANT }]
+        }
+      }
+    });
+    externalUserId = externalUser.id;
 
     const clubAdminLogin = await request(app.getHttpServer())
       .post("/auth/dev-login")
@@ -168,6 +196,12 @@ describe("POST /events", () => {
       .send({ email: "events.other.admin.dev@agu.edu.tr" })
       .expect(201);
     otherClubAdminCookie = getSessionCookie(otherClubAdminLogin.headers["set-cookie"]);
+
+    const externalLogin = await request(app.getHttpServer())
+      .post("/auth/dev-login")
+      .send({ email: "external.participant@example.com" })
+      .expect(201);
+    externalCookie = getSessionCookie(externalLogin.headers["set-cookie"]);
   });
 
   beforeEach(() => {
@@ -1167,6 +1201,8 @@ describe("POST /events", () => {
 
     expect(response.body).toEqual({
       registered: false,
+      eligible: true,
+      eligibilityCode: "eligible",
       registration: null
     });
   });
@@ -1191,6 +1227,8 @@ describe("POST /events", () => {
 
     expect(response.body).toEqual({
       registered: false,
+      eligible: true,
+      eligibilityCode: "eligible",
       registration: null
     });
   });
@@ -1928,6 +1966,101 @@ describe("POST /events", () => {
           .set("Cookie", clubAdminCookie)
           .expect(409);
       }
+    });
+  });
+
+  describe("Participation Scope & External Participant Behavior", () => {
+    it("allows creating event with EXTERNAL_ALLOWED participationScope", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/events")
+        .set("Cookie", clubAdminCookie)
+        .send({
+          ...validBody(clubId),
+          participationScope: "EXTERNAL_ALLOWED"
+        })
+        .expect(201);
+
+      expect(res.body.participationScope).toBe("EXTERNAL_ALLOWED");
+    });
+
+    it("prevents EXTERNAL_PARTICIPANT from creating draft events", async () => {
+      await request(app.getHttpServer())
+        .post("/events")
+        .set("Cookie", externalCookie)
+        .send(validBody(clubId))
+        .expect(403);
+    });
+
+    it("rejects EXTERNAL_PARTICIPANT registration for AGU_ONLY event with 403", async () => {
+      const event = await prisma.event.create({
+        data: {
+          clubId,
+          createdById: clubAdminId,
+          title: `AGU Only Event ${Date.now()}`,
+          slug: `agu-only-${Date.now()}`,
+          description: "AGU only event description",
+          startsAt: new Date("2026-08-20T14:00:00.000Z"),
+          endsAt: new Date("2026-08-20T16:00:00.000Z"),
+          location: "AGU Buyuk Amfi",
+          status: "PUBLISHED",
+          participationScope: "AGU_ONLY"
+        }
+      });
+
+      const regStatusRes = await request(app.getHttpServer())
+        .get(`/events/${event.id}/registration`)
+        .set("Cookie", externalCookie)
+        .expect(200);
+
+      expect(regStatusRes.body).toEqual({
+        registered: false,
+        eligible: false,
+        eligibilityCode: "not-eligible",
+        registration: null
+      });
+
+      const registerRes = await request(app.getHttpServer())
+        .post(`/events/${event.id}/register`)
+        .set("Cookie", externalCookie)
+        .expect(403);
+
+      expect(registerRes.body.message).toContain("restricted to AGU students");
+    });
+
+    it("allows EXTERNAL_PARTICIPANT registration and check-in for EXTERNAL_ALLOWED event", async () => {
+      const event = await prisma.event.create({
+        data: {
+          clubId,
+          createdById: clubAdminId,
+          title: `External Allowed Event ${Date.now()}`,
+          slug: `ext-allowed-${Date.now()}`,
+          description: "External allowed event description",
+          startsAt: new Date("2026-08-20T14:00:00.000Z"),
+          endsAt: new Date("2026-08-20T16:00:00.000Z"),
+          location: "AGU Conference Hall",
+          status: "PUBLISHED",
+          participationScope: "EXTERNAL_ALLOWED"
+        }
+      });
+
+      const regStatusRes = await request(app.getHttpServer())
+        .get(`/events/${event.id}/registration`)
+        .set("Cookie", externalCookie)
+        .expect(200);
+
+      expect(regStatusRes.body).toEqual({
+        registered: false,
+        eligible: true,
+        eligibilityCode: "eligible",
+        registration: null
+      });
+
+      const registerRes = await request(app.getHttpServer())
+        .post(`/events/${event.id}/register`)
+        .set("Cookie", externalCookie)
+        .expect(201);
+
+      expect(registerRes.body.userId).toBe(externalUserId);
     });
   });
 

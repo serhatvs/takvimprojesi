@@ -12,6 +12,12 @@ enum RoleName {
   CLUB_ADMIN
   PRESS_EDITOR
   SYSTEM_ADMIN
+  EXTERNAL_PARTICIPANT
+}
+
+enum EventParticipationScope {
+  AGU_ONLY
+  EXTERNAL_ALLOWED
 }
 
 enum ClubMembershipRole {
@@ -113,6 +119,7 @@ model Event {
   description         String
   location            String
   status              EventStatus         @default(DRAFT)
+  participationScope  EventParticipationScope @default(AGU_ONLY)
   startsAt            DateTime
   endsAt              DateTime
   capacity            Int?

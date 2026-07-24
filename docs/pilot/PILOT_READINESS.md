@@ -16,8 +16,8 @@ Bu belge AGÜ Kampüs Takvimi Faz 1 pilot sürüm öncesi güvenlik ve yayın ha
 
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
-| Dev-login production engeli | ✅ HAZİR | `AuthService.ensureDevAuthAvailable()` `NODE_ENV=production` veya `ENABLE_DEV_AUTH !== 'true'` olduğunda 403 döndürür. Startup env validation da bu kombinasyonu reddeder. |
-| Gerçek AGÜ SSO | 🔴 KRİTİK BLOCKER | Henüz SSO provider yok. Pilot test hesaplarıyla yapılabilir ama gerçek öğrenci/personel girişi için SSO şart. |
+| Gerçek AGÜ SSO | ✅ HAZİR | AGÜ kullanıcıları kurumsal e-posta ile, dış katılımcılar normal e-posta doğrulamasıyla giriş yapabilir. AGÜ SSO zorunlu değildir. |
+| Production e-posta OTP teslimat sağlayıcısı | 🔴 KRİTİK BLOCKER | Production e-posta OTP teslimat sağlayıcısı ve gönderici domaini henüz yapılandırılmadı. |
 | Session cookie güvenliği | ✅ HAZİR | HttpOnly, SameSite=Lax, production'da Secure. Token payload'ında yalnızca userId. |
 | Session secret doğrulaması | ✅ HAZİR | Startup'ta `AUTH_SESSION_SECRET` varlığı, minimum 32 karakter uzunluğu ve `.env.example` geliştirme değerinin kullanılmadığı doğrulanır. |
 

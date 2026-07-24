@@ -95,8 +95,11 @@ export class AttendanceService {
   }
 
   async checkIn(principal: Principal, inputToken: unknown) {
-    if (!principal.globalRoles.includes("STUDENT")) {
-      throw new ForbiddenException("Only students can check in to events.");
+    const isStudent = principal.globalRoles.includes("STUDENT");
+    const isExternal = principal.globalRoles.includes("EXTERNAL_PARTICIPANT");
+
+    if (!isStudent && !isExternal) {
+      throw new ForbiddenException("Only students and external participants can check in to events.");
     }
 
     if (typeof inputToken !== "string" || !inputToken.trim()) {
@@ -114,12 +117,17 @@ export class AttendanceService {
       select: {
         id: true,
         startsAt: true,
-        endsAt: true
+        endsAt: true,
+        participationScope: true
       }
     });
 
     if (!event) {
       throw new NotFoundException("Event was not found.");
+    }
+
+    if (event.participationScope === "AGU_ONLY" && !isStudent) {
+      throw new ForbiddenException("Bu yoklama yalnızca AGÜ katılımcılarına açıktır.");
     }
 
     const now = new Date();

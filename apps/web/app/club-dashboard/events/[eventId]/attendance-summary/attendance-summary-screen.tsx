@@ -338,8 +338,9 @@ export function AttendanceSummaryScreen({
                 <thead>
                   <tr style={{ borderBottom: "2px solid var(--color-border, #e2e8f0)", textAlign: "left" }}>
                     <th style={{ padding: "0.75rem 0.5rem" }}>#</th>
-                    <th style={{ padding: "0.75rem 0.5rem" }}>Öğrenci Adı</th>
+                    <th style={{ padding: "0.75rem 0.5rem" }}>Katılımcı Adı</th>
                     <th style={{ padding: "0.75rem 0.5rem" }}>E-posta</th>
+                    <th style={{ padding: "0.75rem 0.5rem" }}>Katılımcı Türü</th>
                     <th style={{ padding: "0.75rem 0.5rem" }}>Kayıt Zamanı</th>
                     <th style={{ padding: "0.75rem 0.5rem" }}>Check-in Zamanı</th>
                   </tr>
@@ -358,6 +359,11 @@ export function AttendanceSummaryScreen({
                       </td>
                       <td style={{ padding: "0.75rem 0.5rem", color: "var(--color-text-muted, #64748b)" }}>
                         {attendee.email}
+                      </td>
+                      <td style={{ padding: "0.75rem 0.5rem" }}>
+                        <StatusBadge tone={attendee.participantType === "EXTERNAL" ? "warning" : "success"}>
+                          {attendee.participantType === "EXTERNAL" ? "Dış Katılımcı" : "AGÜ Katılımcısı"}
+                        </StatusBadge>
                       </td>
                       <td style={{ padding: "0.75rem 0.5rem" }}>
                         {formatEventDateTime(attendee.registeredAt)}

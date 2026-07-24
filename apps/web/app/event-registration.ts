@@ -9,6 +9,7 @@ export type EventRegistrationState =
   | { kind: "checking-session" }
   | { kind: "anonymous" }
   | { kind: "forbidden" }
+  | { kind: "not-eligible" }
   | { kind: "loading-registration" }
   | { kind: "not-registered" }
   | { kind: "submitting" }
@@ -26,6 +27,10 @@ export type EventRegistrationView = {
 
 export function hasStudentRole(user: AuthPrincipal): boolean {
   return user.globalRoles.includes("STUDENT");
+}
+
+export function hasParticipantRole(user: AuthPrincipal): boolean {
+  return user.globalRoles.includes("STUDENT") || user.globalRoles.includes("EXTERNAL_PARTICIPANT");
 }
 
 export function buildRegistrationStatusPath(eventId: string): string {
@@ -46,11 +51,19 @@ export function stateFromRegistrationStatus(
     };
   }
 
+  if (status.eligibilityCode === "not-eligible" || status.eligible === false) {
+    return { kind: "not-eligible" };
+  }
+
   return { kind: "not-registered" };
 }
 
 export function messageForRegistrationConflict(apiMessage: string): string {
   const normalized = apiMessage.toLowerCase();
+
+  if (normalized.includes("restricted") || normalized.includes("only agu") || normalized.includes("yalnızca agü")) {
+    return "Bu etkinlik yalnızca AGÜ öğrencilerine özeldir.";
+  }
 
   if (normalized.includes("already")) {
     return "Bu etkinliğe zaten kayıtlısınız.";
@@ -96,6 +109,15 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
         registeredAtLabel: null,
         tone: "warning"
       };
+    case "not-eligible":
+      return {
+        message: "Bu etkinlik yalnızca AGÜ öğrencilerine özeldir.",
+        showJoinButton: false,
+        showCheckInLink: false,
+        buttonDisabled: true,
+        registeredAtLabel: null,
+        tone: "warning"
+      };
     case "loading-registration":
       return {
         message: "Kayıt durumunuz kontrol ediliyor.",
@@ -107,7 +129,7 @@ export function viewForRegistrationState(state: EventRegistrationState): EventRe
       };
     case "not-registered":
       return {
-        message: "Bu etkinliğe öğrenci hesabınızla kayıt olabilirsiniz.",
+        message: "Bu etkinliğe kayıt olabilirsiniz.",
         showJoinButton: true,
         showCheckInLink: false,
         buttonDisabled: false,

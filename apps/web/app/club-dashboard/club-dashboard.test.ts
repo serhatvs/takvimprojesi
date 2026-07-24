@@ -105,6 +105,7 @@ describe("club-dashboard", () => {
         location: "Room 1",
         capacity: 50,
         status: "PUBLISHED",
+        participationScope: "AGU_ONLY",
         publishedAt: "2023-12-01T10:00:00Z",
         updatedAt: "2023-11-01T10:00:00Z"
       });
@@ -133,6 +134,7 @@ describe("club-dashboard", () => {
         location: "Room 2",
         capacity: null,
         status: "DRAFT",
+        participationScope: "AGU_ONLY",
         publishedAt: null,
         updatedAt: "2023-11-01T10:00:00Z"
       });

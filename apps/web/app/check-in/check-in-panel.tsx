@@ -170,9 +170,19 @@ export function CheckInPanel({ apiBaseUrl }: CheckInPanelProps) {
         return;
       }
 
+      let apiMessage = "";
+      try {
+        const errorBody = (await response.json()) as { message?: unknown };
+        if (typeof errorBody.message === "string") {
+          apiMessage = errorBody.message;
+        }
+      } catch {
+        // Ignore JSON parse errors for non-JSON error responses
+      }
+
       setState({
         kind: "error",
-        message: messageForCheckInResponse(response.status),
+        message: messageForCheckInResponse(response.status, apiMessage),
         manualOpen: true
       });
     } catch {

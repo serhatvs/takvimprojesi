@@ -17,6 +17,7 @@ function toClubEventListItem(event: Event): ClubEventListItem {
     location: event.location,
     capacity: event.capacity,
     status: event.status,
+    participationScope: event.participationScope,
     publishedAt: event.publishedAt?.toISOString() ?? null,
     updatedAt: event.updatedAt.toISOString()
   };
@@ -41,7 +42,7 @@ export class ClubsController {
     @Query() query: ClubEventsQueryDto
   ) {
     const response = await this.clubsService.getClubEvents(principal, clubId, query);
-    
+
     return {
       club: response.club,
       items: response.items.map(toClubEventListItem),

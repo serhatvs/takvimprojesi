@@ -42,6 +42,7 @@ export function EditEventForm({ eventId, initialRevision, returnParams }: EditEv
   const [endsAt, setEndsAt] = useState(() => parseUtcToIstanbulLocal(event.endsAt));
   const [location, setLocation] = useState(event.location);
   const [capacity, setCapacity] = useState(() => (event.capacity !== null && event.capacity !== undefined ? event.capacity.toString() : ""));
+  const [participationScope, setParticipationScope] = useState<"AGU_ONLY" | "EXTERNAL_ALLOWED">(event.participationScope ?? "AGU_ONLY");
 
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,7 +129,8 @@ export function EditEventForm({ eventId, initialRevision, returnParams }: EditEv
       startsAt: parseLocalToIstanbulUtc(startsAt),
       endsAt: parseLocalToIstanbulUtc(endsAt),
       location: location.trim(),
-      capacity: capacityVal
+      capacity: capacityVal,
+      participationScope
     };
 
     try {
@@ -285,6 +287,22 @@ export function EditEventForm({ eventId, initialRevision, returnParams }: EditEv
               disabled={isSubmitting}
               required
             />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="participationScope">Katılım Kapsamı</label>
+            <select
+              id="participationScope"
+              name="participationScope"
+              className="form-input"
+              value={participationScope}
+              onChange={(e) => setParticipationScope(e.target.value as "AGU_ONLY" | "EXTERNAL_ALLOWED")}
+              disabled={isSubmitting}
+              required
+            >
+              <option value="AGU_ONLY">AGÜ Katılımcılarına Özel (AGU_ONLY)</option>
+              <option value="EXTERNAL_ALLOWED">Dış Katılıma Açık (EXTERNAL_ALLOWED)</option>
+            </select>
           </div>
 
           <div className="form-group">
