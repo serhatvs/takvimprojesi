@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
 const cspHeader = [
   "default-src 'self'",
@@ -15,6 +19,14 @@ const cspHeader = [
 const nextConfig: NextConfig = {
   transpilePackages: ["@agu/ui", "@agu/config", "@agu/contracts"],
   poweredByHeader: false,
+  // Cloud Run runs the app from apps/web/.next/standalone/apps/web/server.js.
+  // Standalone output packages a minimal server + traced node_modules, which
+  // keeps the production container image small and dependency-free of pnpm.
+  output: "standalone",
+  // The workspace root is two levels up from apps/web (monorepo root). Setting
+  // this explicitly avoids Next.js guessing the wrong root when tracing files
+  // across the pnpm workspace (packages/config, packages/contracts, packages/ui).
+  outputFileTracingRoot: path.join(currentDir, "../.."),
 
   async headers() {
     return [

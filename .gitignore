@@ -4,7 +4,10 @@ node_modules.*
 .turbo
 **/.turbo
 .next
+.next-*
 dist
+out-api-verify
+out-web-verify
 coverage
 .env
 .env.*

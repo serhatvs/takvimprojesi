@@ -1,4 +1,3 @@
-import { DEFAULT_API_PORT } from "@agu/config";
 import { NestFactory } from "@nestjs/core";
 import cookieParser from "cookie-parser";
 import "reflect-metadata";
@@ -8,6 +7,7 @@ import { validateProductionEnv } from "./config/env-validation";
 import { securityHeaders } from "./middleware/security-headers.middleware";
 import { rateLimit } from "./middleware/rate-limit.middleware";
 import { AllExceptionsFilter } from "./common/all-exceptions.filter";
+import { resolveApiPort } from "./config/port-resolver";
 
 async function bootstrap() {
   loadRootEnv();
@@ -48,8 +48,8 @@ async function bootstrap() {
     credentials: true
   });
 
-  const port = Number(process.env.API_PORT ?? DEFAULT_API_PORT);
-  await app.listen(port);
+  const port = resolveApiPort();
+  await app.listen(port, "0.0.0.0");
 }
 
 void bootstrap();
