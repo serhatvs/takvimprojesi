@@ -54,6 +54,10 @@ export function parseCheckInQrPayload(rawPayload: string): ParsedCheckInPayload 
     return { ok: false, message: INVALID_QR_MESSAGE };
   }
 
+  if (typeof parsed.type === "string" && parsed.type !== "agu-attendance") {
+    return { ok: false, message: INVALID_QR_MESSAGE };
+  }
+
   if (typeof parsed.eventId !== "string" || parsed.eventId.trim().length === 0) {
     return { ok: false, message: INVALID_QR_MESSAGE };
   }

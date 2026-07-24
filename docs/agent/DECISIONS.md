@@ -103,3 +103,13 @@
   - Gerekce: Sekme arka plandayken sunucuya gereksiz istek yağdırmayı engeller ve istemci kaynaklarını korur.
 - QR görsel üretimi için `@agu/web` altında `qrcode.react` (`QRCodeSVG`) kullanıldı.
   - Gerekce: Hafif, bakımı kolay ve SVG tabanlı responsive QR üretimi sunar.
+- Öğrenci QR katılım ekranı `/attendance/check-in` route'unda eklendi.
+  - Gerekce: Öğrenci kamera tarayıcısıyla veya manuel yedek girdiyle QR kodunu tarayarak katılım kaydı oluşturabilir.
+- Kamera akışı yalnızca kullanıcı açıkça "Kamerayı Başlat" dediğinde başlatılır.
+  - Gerekce: Tarayıcı otomatik izin istemelerinin kullanıcı deneyimini bozmasını ve gereksiz kamera erişimini önler.
+- QR payload'ı `version=1`, `eventId` ve `token` (opsiyonel `type="agu-attendance"`) yapısını doğrular.
+  - Gerekce: Geçersiz, bozuk veya farklı biçimdeki QR kodlarının sunucuya istek gönderilmeden istemci tarafında engellenmesi sağlanır.
+- Katılım isteğinde `POST /attendance/check-in` body'sinde yalnızca `{ "token": "..." }` gönderilir.
+  - Gerekce: Backend sözleşmesi ile tam uyum sağlanır; QR payload'ındaki eventId veritabanı yazma işleminde doğrudan kullanılmaz.
+- Kamera akışları component unmount olduğunda (`stopQrScannerSafely`) veya tarama tamamlandığında güvenle kapatılır.
+  - Gerekce: Cihaz kamerasının açık kalması engellenir ve pil/kaynak kullanımı optimize edilir.

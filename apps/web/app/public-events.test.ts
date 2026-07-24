@@ -609,6 +609,15 @@ describe("public event helpers", () => {
     });
   });
 
+  it("rejects check-in QR payloads with invalid type", () => {
+    expect(
+      parseCheckInQrPayload('{"version":1,"type":"invalid-type","eventId":"event-1","token":"token-1"}')
+    ).toEqual({
+      ok: false,
+      message: INVALID_QR_MESSAGE
+    });
+  });
+
   it("rejects check-in QR payloads without an event ID", () => {
     expect(parseCheckInQrPayload('{"version":1,"eventId":"","token":"token-1"}')).toEqual({
       ok: false,

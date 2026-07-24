@@ -235,6 +235,23 @@ export function CheckInPanel({ apiBaseUrl }: CheckInPanelProps) {
       </div>
 
       <div className="check-in-actions">
+        {state.kind === "anonymous" ? (
+          <a href="/auth/login" className="primary-action" style={{ display: "inline-block", textDecoration: "none", textAlign: "center" }}>
+            Giriş Yap
+          </a>
+        ) : null}
+        {state.kind === "success" ? (
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={() => {
+              setManualPayload("");
+              setState({ kind: "ready", cameraActive: false, manualOpen: false, message: null });
+            }}
+          >
+            Başka QR Tara
+          </button>
+        ) : null}
         {view.canStartCamera ? (
           <button type="button" onClick={startCamera} disabled={view.isSubmitting}>
             Kamerayı Başlat

@@ -56,7 +56,10 @@ export default async function HomePage({
           AGÜ öğrenci kulüplerinin Basın Yayın onayından geçen yaklaşan
           etkinliklerini tek yerden takip edin.
         </p>
-        <div style={{ marginTop: "1rem" }}>
+        <div style={{ marginTop: "1rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <Link href="/attendance/check-in" className="primary-action">
+            QR ile Katılım
+          </Link>
           <Link href="/club-dashboard" className="secondary-action">
             Kulüp Yönetim Paneli
           </Link>
