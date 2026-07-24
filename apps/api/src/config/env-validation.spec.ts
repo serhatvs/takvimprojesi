@@ -93,6 +93,34 @@ describe("validateProductionEnv", () => {
     );
   });
 
+  it("should throw if EMAIL_DELIVERY_MODE is console in production", () => {
+    process.env.NODE_ENV = "production";
+    process.env.DATABASE_URL = "postgres://";
+    process.env.WEB_ORIGIN = "https://example.com";
+    process.env.AUTH_SESSION_SECRET = "12345678901234567890123456789012";
+    process.env.QR_ATTENDANCE_SECRET = "12345678901234567890123456789012";
+    process.env.EMAIL_DELIVERY_MODE = "console";
+
+    expect(() => validateProductionEnv()).toThrow(
+      /EMAIL_DELIVERY_MODE=console is not allowed in production/
+    );
+  });
+
+  it("should throw if ENABLE_EMAIL_AUTH is true in production with invalid secret or missing SMTP", () => {
+    process.env.NODE_ENV = "production";
+    process.env.DATABASE_URL = "postgres://";
+    process.env.WEB_ORIGIN = "https://example.com";
+    process.env.AUTH_SESSION_SECRET = "12345678901234567890123456789012";
+    process.env.QR_ATTENDANCE_SECRET = "12345678901234567890123456789012";
+    process.env.EMAIL_DELIVERY_MODE = "smtp";
+    process.env.ENABLE_EMAIL_AUTH = "true";
+    process.env.EMAIL_OTP_SECRET = "dev-email-otp-secret-change-in-production";
+
+    expect(() => validateProductionEnv()).toThrow(
+      /EMAIL_OTP_SECRET must be changed in production/
+    );
+  });
+
   it("should not throw if all valid", () => {
     process.env.NODE_ENV = "production";
     process.env.DATABASE_URL = "postgres://";
@@ -100,6 +128,12 @@ describe("validateProductionEnv", () => {
     process.env.AUTH_SESSION_SECRET = "12345678901234567890123456789012";
     process.env.QR_ATTENDANCE_SECRET = "12345678901234567890123456789012";
     process.env.ENABLE_DEV_AUTH = "false";
+    process.env.EMAIL_DELIVERY_MODE = "smtp";
+    process.env.ENABLE_EMAIL_AUTH = "true";
+    process.env.EMAIL_OTP_SECRET = "another-secret-key-32-chars-long-123";
+    process.env.EMAIL_FROM = "no-reply@agu.edu.tr";
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_PORT = "587";
 
     expect(() => validateProductionEnv()).not.toThrow();
   });

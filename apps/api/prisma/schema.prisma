@@ -215,3 +215,17 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([action, createdAt])
 }
+
+model EmailLoginChallenge {
+  id             String    @id @default(uuid())
+  email          String
+  otpHash        String
+  expiresAt      DateTime
+  failedAttempts Int       @default(0)
+  consumedAt     DateTime?
+  lastSentAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([email])
+}

@@ -5,6 +5,8 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module";
 import { AUTH_SESSION_COOKIE_NAME } from "../src/auth/auth.constants";
+import { computeOtpHash } from "../src/auth/email/email-otp.service";
+import { PrismaService } from "../src/prisma/prisma.service";
 
 const originalEnv = { ...process.env };
 
@@ -162,5 +164,127 @@ describe("Auth endpoints", () => {
 
     expect(JSON.stringify(response.body)).not.toContain("tampered-token");
     expect(JSON.stringify(response.body)).not.toContain("integration-test-session-secret");
+  });
+
+  describe("POST /auth/email/request-code and POST /auth/email/verify-code", () => {
+    it("returns 202 Accepted for request-code without leaking account existence", async () => {
+      const res1 = await request(app.getHttpServer())
+        .post("/auth/email/request-code")
+        .send({ email: "student.dev@agu.edu.tr" })
+        .expect(202);
+
+      expect(res1.body).toEqual({
+        message: "Kod gönderilebildiyse e-posta adresinize ulaştırıldı."
+      });
+
+      const res2 = await request(app.getHttpServer())
+        .post("/auth/email/request-code")
+        .send({ email: "brandnew.user@gmail.com" })
+        .expect(202);
+
+      expect(res2.body).toEqual({
+        message: "Kod gönderilebildiyse e-posta adresinize ulaştırıldı."
+      });
+    });
+
+    it("returns 400 for invalid email format on request-code", async () => {
+      await request(app.getHttpServer())
+        .post("/auth/email/request-code")
+        .send({ email: "invalid-email-format" })
+        .expect(400);
+    });
+
+    it("verifies OTP and sets session cookie for AGÜ student", async () => {
+      const email = "test.student.otp@agu.edu.tr";
+      const code = "123456";
+      const hash = computeOtpHash(email, code);
+
+      const prisma = app.get(PrismaService);
+      await prisma.emailLoginChallenge.create({
+        data: {
+          email,
+          otpHash: hash,
+          expiresAt: new Date(Date.now() + 600000)
+        }
+      });
+
+      // Wrong code returns 400
+      await request(app.getHttpServer())
+        .post("/auth/email/verify-code")
+        .send({ email, code: "000000", displayName: "Test OTP Student" })
+        .expect(400);
+
+      // Correct code returns 201/200, creates user with STUDENT role and sets session cookie
+      const verifyRes = await request(app.getHttpServer())
+        .post("/auth/email/verify-code")
+        .send({ email, code, displayName: "Test OTP Student" })
+        .expect(201);
+
+      expect(verifyRes.body.user).toMatchObject({
+        email,
+        displayName: "Test OTP Student",
+        roles: ["STUDENT"]
+      });
+
+      const cookie = getSessionCookie(verifyRes.headers["set-cookie"]);
+
+      // Verify /auth/me with session cookie
+      const meRes = await request(app.getHttpServer())
+        .get("/auth/me")
+        .set("Cookie", cookie)
+        .expect(200);
+
+      expect(meRes.body.user).toMatchObject({
+        email,
+        displayName: "Test OTP Student",
+        globalRoles: ["STUDENT"]
+      });
+
+      // Reusing consumed code fails with 400
+      await request(app.getHttpServer())
+        .post("/auth/email/verify-code")
+        .send({ email, code, displayName: "Test OTP Student" })
+        .expect(400);
+    });
+
+    it("verifies OTP and sets session cookie for external participant", async () => {
+      const email = "external.visitor@gmail.com";
+      const code = "654321";
+      const hash = computeOtpHash(email, code);
+
+      const prisma = app.get(PrismaService);
+      await prisma.emailLoginChallenge.create({
+        data: {
+          email,
+          otpHash: hash,
+          expiresAt: new Date(Date.now() + 600000)
+        }
+      });
+
+      const verifyRes = await request(app.getHttpServer())
+        .post("/auth/email/verify-code")
+        .send({ email, code, displayName: "External Visitor" })
+        .expect(201);
+
+      expect(verifyRes.body.user).toMatchObject({
+        email,
+        displayName: "External Visitor",
+        roles: ["EXTERNAL_PARTICIPANT"]
+      });
+    });
+
+    it("returns 503 when email auth is disabled", async () => {
+      process.env.ENABLE_EMAIL_AUTH = "false";
+
+      await request(app.getHttpServer())
+        .post("/auth/email/request-code")
+        .send({ email: "user@agu.edu.tr" })
+        .expect(503);
+
+      await request(app.getHttpServer())
+        .post("/auth/email/verify-code")
+        .send({ email: "user@agu.edu.tr", code: "123456" })
+        .expect(503);
+    });
   });
 });

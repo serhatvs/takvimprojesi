@@ -12,6 +12,8 @@ interface RequestLog {
 
 const RATE_LIMIT_ROUTES: Record<string, RateLimitConfig> = {
   "/auth/dev-login": { windowMs: 60_000, max: 5 },
+  "/auth/email/request-code": { windowMs: 15 * 60_000, max: 10 },
+  "/auth/email/verify-code": { windowMs: 15 * 60_000, max: 20 },
   "/attendance/check-in": { windowMs: 60_000, max: 10 }
 };
 

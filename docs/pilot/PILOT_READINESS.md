@@ -16,8 +16,9 @@ Bu belge AGÜ Kampüs Takvimi Faz 1 pilot sürüm öncesi güvenlik ve yayın ha
 
 | Madde | Durum | Açıklama |
 |-------|-------|----------|
-| Gerçek AGÜ SSO | ✅ HAZİR | AGÜ kullanıcıları kurumsal e-posta ile, dış katılımcılar normal e-posta doğrulamasıyla giriş yapabilir. AGÜ SSO zorunlu değildir. |
-| Production e-posta OTP teslimat sağlayıcısı | 🔴 KRİTİK BLOCKER | Production e-posta OTP teslimat sağlayıcısı ve gönderici domaini henüz yapılandırılmadı. |
+| E-posta OTP Backend Temeli | ✅ HAZİR | `POST /auth/email/request-code` ve `POST /auth/email/verify-code` endpointleri, HMAC-SHA256 hashleme, cooldown, rate-limiting, domain bazlı `STUDENT`/`EXTERNAL_PARTICIPANT` otomatik rol atama ve `agu_session` cookie entegrasyonu tamamlandı. |
+| Production e-posta OTP teslimat sağlayıcısı | 🔴 KRİTİK BLOCKER | Production SMTP sunucusu, portu, kimlik bilgileri ve gönderici e-posta domaini henüz canlı ortamda yapılandırılmadı. |
+| Web OTP Giriş Ekranı | ⚠️ EKSİK | Backend OTP temeli hazır; Next.js web giriş ekranı ve OTP form bileşenleri sonraki görevde eklenecektir. |
 | Session cookie güvenliği | ✅ HAZİR | HttpOnly, SameSite=Lax, production'da Secure. Token payload'ında yalnızca userId. |
 | Session secret doğrulaması | ✅ HAZİR | Startup'ta `AUTH_SESSION_SECRET` varlığı, minimum 32 karakter uzunluğu ve `.env.example` geliştirme değerinin kullanılmadığı doğrulanır. |
 

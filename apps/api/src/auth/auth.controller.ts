@@ -1,20 +1,32 @@
-import { Body, Controller, Get, Post, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import { AuthenticationGuard } from "./auth.guard";
 import { AuthService } from "./auth.service";
 import { AuthSessionService } from "./auth-session.service";
 import { CurrentUser } from "./current-user.decorator";
 import type { Principal } from "./principal";
+import { EmailOtpService } from "./email/email-otp.service";
 
 type DevLoginBody = {
   email?: unknown;
+};
+
+type RequestCodeBody = {
+  email?: unknown;
+};
+
+type VerifyCodeBody = {
+  email?: unknown;
+  code?: unknown;
+  displayName?: unknown;
 };
 
 @Controller("auth")
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly sessionService: AuthSessionService
+    private readonly sessionService: AuthSessionService,
+    private readonly emailOtpService: EmailOtpService
   ) {}
 
   @Post("dev-login")
@@ -26,6 +38,28 @@ export class AuthController {
     this.sessionService.setSessionCookie(response, token);
 
     return { user: principal };
+  }
+
+  @Post("email/request-code")
+  @HttpCode(202)
+  async requestCode(@Body() body: RequestCodeBody) {
+    return this.emailOtpService.requestCode(body?.email);
+  }
+
+  @Post("email/verify-code")
+  async verifyCode(
+    @Body() body: VerifyCodeBody,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const result = await this.emailOtpService.verifyCode(
+      body?.email,
+      body?.code,
+      body?.displayName
+    );
+
+    this.sessionService.setSessionCookie(response, result.token);
+
+    return { user: result.user };
   }
 
   @Get("me")
