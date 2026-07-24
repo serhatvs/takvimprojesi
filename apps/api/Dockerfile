@@ -34,7 +34,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends openssl ca-certificates tini \
     && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@11.16.0 --activate
+# Install the real pnpm executable globally so non-root Cloud Run jobs do not
+# need a writable per-user Corepack cache at runtime.
+RUN npm install --global pnpm@11.16.0
 
 WORKDIR /app
 
