@@ -12,3 +12,8 @@ minimumReleaseAgeExclude:
   - turbo@2.10.6
 packageImportMethod: copy
 storeDir: .pnpm-store
+
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - esbuild
+  - prisma
