@@ -19,6 +19,7 @@ import {
   ATTENDANCE_SUMMARY_EVENT_STATUSES,
   calculateAttendanceSummaryMetrics
 } from "./attendance-summary";
+import type { AttendanceSummaryQueryDto } from "./dto/attendance-summary-query.dto";
 import type { CreateDraftEventDto, ValidCreateDraftEventInput } from "./dto/create-draft-event.dto";
 import type { PublicEventsQueryDto } from "./dto/public-events-query.dto";
 import { EventLifecycleService } from "./event-lifecycle.service";
@@ -933,8 +934,19 @@ export class EventsService {
     }
   }
 
-  async getAttendanceSummary(principal: Principal, eventId: string) {
+  async getAttendanceSummary(
+    principal: Principal,
+    eventId: string,
+    query?: AttendanceSummaryQueryDto
+  ) {
     this.assertValidEventId(eventId);
+
+    const page = this.optionalPositiveIntegerString(query?.page, "page") ?? 1;
+    const pageSize = this.optionalPositiveIntegerString(query?.pageSize, "pageSize") ?? 50;
+    if (pageSize > 100) {
+      throw new BadRequestException("pageSize must be less than or equal to 100.");
+    }
+    const q = this.optionalTrimmedString(query?.q);
 
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
@@ -965,7 +977,7 @@ export class EventsService {
       throw new ConflictException("Attendance summary is not available for this event status.");
     }
 
-    const [registrationCount, attendanceCount] = await this.prisma.$transaction([
+    const [registrationCount, totalAttendanceCount] = await this.prisma.$transaction([
       this.prisma.eventRegistration.count({
         where: {
           eventId,
@@ -977,13 +989,67 @@ export class EventsService {
       })
     ]);
 
+    const attendeeWhere: Prisma.AttendanceWhereInput = {
+      eventId
+    };
+
+    if (q && q.length > 0) {
+      attendeeWhere.OR = [
+        { user: { displayName: { contains: q, mode: "insensitive" } } },
+        { user: { email: { contains: q, mode: "insensitive" } } }
+      ];
+    }
+
+    const [totalMatchingAttendees, attendances] = await this.prisma.$transaction([
+      this.prisma.attendance.count({ where: attendeeWhere }),
+      this.prisma.attendance.findMany({
+        where: attendeeWhere,
+        select: {
+          userId: true,
+          checkedInAt: true,
+          user: {
+            select: {
+              displayName: true,
+              email: true,
+              registrations: {
+                where: { eventId, cancelledAt: null },
+                select: { registeredAt: true },
+                take: 1
+              }
+            }
+          }
+        },
+        orderBy: [
+          { checkedInAt: "asc" },
+          { id: "asc" }
+        ],
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      })
+    ]);
+
+    const attendees = attendances.map((att) => ({
+      userId: att.userId,
+      displayName: att.user.displayName,
+      email: att.user.email,
+      registeredAt: (att.user.registrations[0]?.registeredAt ?? att.checkedInAt).toISOString(),
+      checkedInAt: att.checkedInAt.toISOString()
+    }));
+
     return {
       event,
       metrics: calculateAttendanceSummaryMetrics({
         registrationCount,
-        attendanceCount,
+        attendanceCount: totalAttendanceCount,
         capacity: event.capacity
       }),
+      attendees,
+      pagination: {
+        page,
+        pageSize,
+        totalItems: totalMatchingAttendees,
+        totalPages: Math.max(1, Math.ceil(totalMatchingAttendees / pageSize))
+      },
       generatedAt: new Date()
     };
   }

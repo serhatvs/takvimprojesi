@@ -87,12 +87,40 @@ const attendanceSummary: EventAttendanceSummaryResponse = {
     endsAt: "2026-08-10T13:00:00.000Z",
     capacity: 100
   },
-  metrics: {
-    registrationCount: 3,
+  summary: {
+    registeredCount: 3,
     attendanceCount: 2,
     absentCount: 1,
-    remainingCapacity: 97,
-    attendanceRate: 66.7
+    capacityRemaining: 97,
+    registrationRate: 3,
+    attendanceRate: 66.7,
+    registrationCount: 3,
+    remainingCapacity: 97
+  },
+  metrics: {
+    registeredCount: 3,
+    attendanceCount: 2,
+    absentCount: 1,
+    capacityRemaining: 97,
+    registrationRate: 3,
+    attendanceRate: 66.7,
+    registrationCount: 3,
+    remainingCapacity: 97
+  },
+  attendees: [
+    {
+      userId: "student-1",
+      displayName: "Student One",
+      email: "student1@agu.edu.tr",
+      registeredAt: "2026-07-20T10:00:00.000Z",
+      checkedInAt: "2026-08-10T11:05:00.000Z"
+    }
+  ],
+  pagination: {
+    page: 1,
+    pageSize: 50,
+    totalItems: 1,
+    totalPages: 1
   },
   generatedAt: "2026-07-23T12:00:00.000Z"
 };
@@ -818,11 +846,14 @@ describe("public event helpers", () => {
       summary: {
         ...attendanceSummary,
         metrics: {
-          registrationCount: 0,
+          registeredCount: 0,
           attendanceCount: 0,
           absentCount: 0,
-          remainingCapacity: null,
-          attendanceRate: 0
+          capacityRemaining: null,
+          registrationRate: null,
+          attendanceRate: 0,
+          registrationCount: 0,
+          remainingCapacity: null
         }
       },
       loadedAt: "2026-07-23T19:15:00.000Z"

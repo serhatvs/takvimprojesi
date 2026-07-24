@@ -117,14 +117,23 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
                     </Link>
                   </div>
                 )}
-                {item.status === "PUBLISHED" && (
-                  <div className="event-card-actions" style={{ marginTop: "var(--spacing-3)", marginBottom: "var(--spacing-2)" }}>
+                {(item.status === "PUBLISHED" || item.status === "COMPLETED" || item.status === "CANCELLED") && (
+                  <div className="event-card-actions" style={{ marginTop: "var(--spacing-3)", marginBottom: "var(--spacing-2)", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    {item.status === "PUBLISHED" && (
+                      <Link
+                        href={`/club-dashboard/events/${encodeURIComponent(item.id)}/attendance`}
+                        className="secondary-action"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                      >
+                        <span>📱</span> Canlı QR Katılım Ekranı
+                      </Link>
+                    )}
                     <Link
-                      href={`/club-dashboard/events/${encodeURIComponent(item.id)}/attendance`}
+                      href={`/club-dashboard/events/${encodeURIComponent(item.id)}/attendance-summary`}
                       className="secondary-action"
                       style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                     >
-                      <span>📱</span> Canlı QR Katılım Ekranı
+                      <span>📊</span> Katılım Sonuçları
                     </Link>
                   </div>
                 )}

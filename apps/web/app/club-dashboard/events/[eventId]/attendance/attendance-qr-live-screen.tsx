@@ -240,17 +240,25 @@ export function AttendanceQrLiveScreen({
   return (
     <main className="page-shell attendance-live-screen">
       <header className="intro">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
           <div>
             <p className="eyebrow">Organizatör Canlı Yayın</p>
             <h1>Yoklama QR Kodu</h1>
           </div>
-          <Link
-            href={`/club-dashboard?clubId=${encodeURIComponent(event.clubId)}`}
-            className="secondary-action"
-          >
-            ← Kulüp Paneline Dön
-          </Link>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <Link
+              href={`/club-dashboard/events/${encodeURIComponent(event.id)}/attendance-summary`}
+              className="secondary-action"
+            >
+              📊 Katılım Sonuçları
+            </Link>
+            <Link
+              href={`/club-dashboard?clubId=${encodeURIComponent(event.clubId)}`}
+              className="secondary-action"
+            >
+              ← Kulüp Paneli
+            </Link>
+          </div>
         </div>
       </header>
 

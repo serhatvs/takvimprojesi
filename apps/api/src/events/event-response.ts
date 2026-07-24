@@ -107,7 +107,20 @@ export function toAttendanceResponse(attendance: Attendance): AttendanceResponse
 export function toEventAttendanceSummaryResponse(input: {
   event: Pick<Event, "id" | "title" | "status" | "startsAt" | "endsAt" | "capacity">;
   metrics: AttendanceSummaryMetrics;
-  generatedAt: Date;
+  attendees: Array<{
+    userId: string;
+    displayName: string;
+    email: string;
+    registeredAt: string;
+    checkedInAt: string;
+  }>;
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+  generatedAt?: Date;
 }): EventAttendanceSummaryResponse {
   return {
     event: {
@@ -118,7 +131,10 @@ export function toEventAttendanceSummaryResponse(input: {
       endsAt: input.event.endsAt.toISOString(),
       capacity: input.event.capacity
     },
+    summary: input.metrics,
     metrics: input.metrics,
-    generatedAt: input.generatedAt.toISOString()
+    attendees: input.attendees,
+    pagination: input.pagination,
+    ...(input.generatedAt ? { generatedAt: input.generatedAt.toISOString() } : {})
   };
 }

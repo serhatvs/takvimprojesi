@@ -73,9 +73,16 @@ export class EventsController {
   @UseGuards(AuthenticationGuard)
   async getAttendanceSummary(
     @CurrentUser() principal: Principal,
-    @Param("eventId") eventId: string
+    @Param("eventId") eventId: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("q") q?: string
   ) {
-    const summary = await this.eventsService.getAttendanceSummary(principal, eventId);
+    const summary = await this.eventsService.getAttendanceSummary(principal, eventId, {
+      page,
+      pageSize,
+      q
+    });
     return toEventAttendanceSummaryResponse(summary);
   }
 

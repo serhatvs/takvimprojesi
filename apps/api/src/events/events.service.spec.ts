@@ -288,6 +288,7 @@ function createService({
     },
     attendance: {
       count: vi.fn().mockResolvedValue(attendanceSummaryAttendanceCount),
+      findMany: vi.fn().mockResolvedValue([]),
       create: attendanceCreateFailsUnique
         ? vi.fn().mockRejectedValue({ code: "P2002" })
         : vi.fn().mockImplementation(({ data }) => ({
@@ -743,7 +744,7 @@ describe("EventsService", () => {
       clubAdmin,
       "club-id"
     );
-    expect(summary.metrics).toEqual({
+    expect(summary.metrics).toMatchObject({
       registrationCount: 80,
       attendanceCount: 62,
       absentCount: 18,
@@ -789,11 +790,14 @@ describe("EventsService", () => {
         capacity: 10
       })
     ).toEqual({
-      registrationCount: 3,
+      registeredCount: 3,
       attendanceCount: 2,
       absentCount: 1,
-      remainingCapacity: 7,
-      attendanceRate: 66.7
+      capacityRemaining: 7,
+      registrationRate: 30,
+      attendanceRate: 66.67,
+      registrationCount: 3,
+      remainingCapacity: 7
     });
   });
 

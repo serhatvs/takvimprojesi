@@ -1458,22 +1458,82 @@ describe("POST /events", () => {
         status: "PUBLISHED",
         capacity: 100
       },
-      metrics: {
-        registrationCount: 3,
+      summary: {
+        registeredCount: 3,
         attendanceCount: 2,
         absentCount: 1,
-        remainingCapacity: 97,
-        attendanceRate: 66.7
+        capacityRemaining: 97,
+        registrationRate: 3,
+        attendanceRate: 66.67
       },
-      generatedAt: expect.any(String)
+      attendees: [
+        {
+          userId: expect.any(String),
+          displayName: expect.any(String),
+          email: expect.any(String),
+          registeredAt: expect.any(String),
+          checkedInAt: expect.any(String)
+        },
+        {
+          userId: expect.any(String),
+          displayName: expect.any(String),
+          email: expect.any(String),
+          registeredAt: expect.any(String),
+          checkedInAt: expect.any(String)
+        }
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 50,
+        totalItems: 2,
+        totalPages: 1
+      }
     });
     expect(response.body.event.startsAt).toEqual(expect.any(String));
     expect(response.body.event.endsAt).toEqual(expect.any(String));
-    expect(JSON.stringify(response.body)).not.toContain(studentId);
-    expect(JSON.stringify(response.body)).not.toContain("student.dev@agu.edu.tr");
     expect(JSON.stringify(response.body)).not.toContain("token");
+    expect(JSON.stringify(response.body)).not.toContain("password");
     expect(response.body).not.toHaveProperty("registrations");
-    expect(response.body).not.toHaveProperty("attendances");
+  });
+
+  it("supports search filtering and pagination for attendees without affecting summary metrics", async () => {
+    const event = await createPublicEvent("integration-summary-event-search", {
+      title: "Attendance Summary Search Event",
+      status: "PUBLISHED",
+      capacity: 50
+    });
+    await prisma.eventRegistration.createMany({
+      data: [
+        { eventId: event.id, userId: studentId },
+        { eventId: event.id, userId: clubMemberId }
+      ]
+    });
+    await prisma.attendance.createMany({
+      data: [
+        { eventId: event.id, userId: studentId, source: "QR" },
+        { eventId: event.id, userId: clubMemberId, source: "QR" }
+      ]
+    });
+
+    const searchRes = await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary?q=Student&page=1&pageSize=10`)
+      .set("Cookie", clubAdminCookie)
+      .expect(200);
+
+    expect(searchRes.body.summary.attendanceCount).toBe(2);
+    expect(searchRes.body.attendees.length).toBe(1);
+    expect(searchRes.body.attendees[0].userId).toBe(studentId);
+    expect(searchRes.body.pagination).toMatchObject({
+      page: 1,
+      pageSize: 10,
+      totalItems: 1,
+      totalPages: 1
+    });
+
+    await request(app.getHttpServer())
+      .get(`/events/${event.id}/attendance-summary?pageSize=150`)
+      .set("Cookie", clubAdminCookie)
+      .expect(400);
   });
 
   it("returns 403 for another club admin, student, and press editor attendance summary access", async () => {
@@ -1551,11 +1611,11 @@ describe("POST /events", () => {
       .set("Cookie", clubAdminCookie)
       .expect(200);
 
-    expect(response.body.metrics).toEqual({
-      registrationCount: 0,
+    expect(response.body.summary).toMatchObject({
+      registeredCount: 0,
       attendanceCount: 0,
       absentCount: 0,
-      remainingCapacity: 20,
+      capacityRemaining: 20,
       attendanceRate: 0
     });
   });
@@ -1572,7 +1632,7 @@ describe("POST /events", () => {
       .set("Cookie", clubAdminCookie)
       .expect(200);
 
-    expect(response.body.metrics.remainingCapacity).toBeNull();
+    expect(response.body.summary.capacityRemaining).toBeNull();
   });
 
   it("keeps existing submit, review, and publish routes working alongside public detail", async () => {

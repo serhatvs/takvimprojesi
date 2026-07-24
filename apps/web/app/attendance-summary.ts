@@ -42,8 +42,23 @@ export function shouldRequestAttendanceSummary(
   return user ? canViewAttendanceSummary(user, clubId) : false;
 }
 
-export function buildAttendanceSummaryPath(eventId: string): string {
-  return `/events/${encodeURIComponent(eventId)}/attendance-summary`;
+export function buildAttendanceSummaryPath(
+  eventId: string,
+  query?: { page?: number; pageSize?: number; q?: string }
+): string {
+  const params = new URLSearchParams();
+  if (query?.page && query.page > 1) {
+    params.set("page", query.page.toString());
+  }
+  if (query?.pageSize && query.pageSize !== 50) {
+    params.set("pageSize", query.pageSize.toString());
+  }
+  if (query?.q && query.q.trim().length > 0) {
+    params.set("q", query.q.trim());
+  }
+  const queryString = params.toString();
+  const base = `/events/${encodeURIComponent(eventId)}/attendance-summary`;
+  return queryString ? `${base}?${queryString}` : base;
 }
 
 export function attendanceSummaryRequestOptions(): RequestInit {
@@ -148,7 +163,10 @@ export function viewForAttendanceSummaryState(
   }
 
   const { summary, loadedAt } = state;
-  const rateLabel = formatAttendanceRate(summary.metrics.attendanceRate);
+  const metrics = summary.metrics || summary.summary;
+  const regCount = metrics.registeredCount ?? metrics.registrationCount ?? 0;
+  const remCap = metrics.capacityRemaining ?? metrics.remainingCapacity ?? null;
+  const rateLabel = formatAttendanceRate(metrics.attendanceRate);
 
   return {
     visible: true,
@@ -156,19 +174,19 @@ export function viewForAttendanceSummaryState(
     metrics: [
       {
         label: "Kayıtlı",
-        value: formatMetricNumber(summary.metrics.registrationCount)
+        value: formatMetricNumber(regCount)
       },
       {
         label: "Yoklaması Alınan",
-        value: formatMetricNumber(summary.metrics.attendanceCount)
+        value: formatMetricNumber(metrics.attendanceCount)
       },
       {
         label: "Katılmayan",
-        value: formatMetricNumber(summary.metrics.absentCount)
+        value: formatMetricNumber(metrics.absentCount)
       },
       {
         label: "Kalan Kontenjan",
-        value: formatRemainingCapacity(summary.metrics.remainingCapacity)
+        value: formatRemainingCapacity(remCap)
       },
       {
         label: "Katılım Oranı",
@@ -177,8 +195,8 @@ export function viewForAttendanceSummaryState(
     ],
     rateLabel,
     progressValue:
-      Number.isFinite(summary.metrics.attendanceRate) && summary.metrics.attendanceRate > 0
-        ? Math.min(summary.metrics.attendanceRate, 100)
+      Number.isFinite(metrics.attendanceRate) && metrics.attendanceRate > 0
+        ? Math.min(metrics.attendanceRate, 100)
         : 0,
     updatedAtLabel: formatEventDateTime(loadedAt),
     canRefresh: true,

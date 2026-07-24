@@ -178,6 +178,25 @@ export interface AttendanceResponse {
   checkedInAt: string;
 }
 
+export interface EventAttendanceSummaryAttendee {
+  userId: string;
+  displayName: string;
+  email: string;
+  registeredAt: string;
+  checkedInAt: string;
+}
+
+export interface EventAttendanceSummaryMetrics {
+  registeredCount: number;
+  attendanceCount: number;
+  absentCount: number;
+  capacityRemaining: number | null;
+  registrationRate: number | null;
+  attendanceRate: number;
+  registrationCount?: number;
+  remainingCapacity?: number | null;
+}
+
 export interface EventAttendanceSummaryResponse {
   event: {
     id: string;
@@ -187,14 +206,11 @@ export interface EventAttendanceSummaryResponse {
     endsAt: string;
     capacity: number | null;
   };
-  metrics: {
-    registrationCount: number;
-    attendanceCount: number;
-    absentCount: number;
-    remainingCapacity: number | null;
-    attendanceRate: number;
-  };
-  generatedAt: string;
+  summary: EventAttendanceSummaryMetrics;
+  metrics: EventAttendanceSummaryMetrics;
+  attendees: EventAttendanceSummaryAttendee[];
+  pagination: PaginationResponse;
+  generatedAt?: string | undefined;
 }
 
 // Club Dashboard Contracts

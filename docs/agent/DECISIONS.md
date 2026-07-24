@@ -113,3 +113,11 @@
   - Gerekce: Backend sözleşmesi ile tam uyum sağlanır; QR payload'ındaki eventId veritabanı yazma işleminde doğrudan kullanılmaz.
 - Kamera akışları component unmount olduğunda (`stopQrScannerSafely`) veya tarama tamamlandığında güvenle kapatılır.
   - Gerekce: Cihaz kamerasının açık kalması engellenir ve pil/kaynak kullanımı optimize edilir.
+- Etkinlik katılım özeti ve katılımcı listesi endpoint'i `GET /events/:eventId/attendance-summary` eklendi.
+  - Gerekce: Yetkili kulüp adminlerinin ve SYSTEM_ADMIN'lerin etkinlik doluluk oranını, yoklama alan/gelmeyen sayılarını ve katılımcı listesini sorgulayabilmesi sağlandı.
+- Katılımcı listesinde e-posta alanı dahil edildi (`userId`, `displayName`, `email`, `registeredAt`, `checkedInAt`).
+  - Gerekce: Kulüp yöneticilerinin öğrencileri kurumsal AGÜ e-postalarıyla ayırt etmesi operasyonel olarak gerekli görüldü. Şifre, rol, session, token veya audit log verileri minimizasyon kuralı uyarınca hariç tutuldu.
+- `q` arama parametresi yalnızca `attendees` dizisini ve `pagination` nesnesini filtreler; genel katılım/kayıt sayılarını değiştiremez.
+  - Gerekce: Arama yapılırken dahi etkinliğin toplam doluluk ve katılım metriklerinin tutarlı kalması garanti edildi.
+- Web `/club-dashboard/events/[eventId]/attendance-summary` route'u ve `AttendanceSummaryScreen` bileşeni eklendi.
+  - Gerekce: Katılım raporunun, özet metrik kartlarının, öğrenci arama alanı ve semantik responsive katılımcı tablosunun kullanıcı dostu sunumu sağlandı.
