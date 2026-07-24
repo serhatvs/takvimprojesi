@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const cloudRunApiOrigin = "https://agu-takvim-api-115651419813.europe-west1.run.app";
 
 const cspHeader = [
   "default-src 'self'",
@@ -27,6 +28,15 @@ const nextConfig: NextConfig = {
   // this explicitly avoids Next.js guessing the wrong root when tracing files
   // across the pnpm workspace (packages/config, packages/contracts, packages/ui).
   outputFileTracingRoot: path.join(currentDir, "../.."),
+
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${cloudRunApiOrigin}/:path*`
+      }
+    ];
+  },
 
   async headers() {
     return [
