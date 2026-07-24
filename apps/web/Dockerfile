@@ -45,6 +45,9 @@ FROM base AS installer
 COPY scripts ./scripts
 COPY tsconfig.base.json ./tsconfig.base.json
 COPY --from=pruner /app/out/json/ .
+# Turbo's generated workspace file can omit pnpm security settings such as
+# allowBuilds. Restore the repository version before installation.
+COPY pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
 
