@@ -649,10 +649,8 @@ describe("public event helpers", () => {
     });
   });
 
-  it("builds encoded check-in submit endpoints", () => {
-    expect(buildCheckInSubmitPath("event 1/unsafe")).toBe(
-      "/events/event%201%2Funsafe/check-in"
-    );
+  it("builds check-in submit endpoints", () => {
+    expect(buildCheckInSubmitPath("event 1/unsafe")).toBe("/attendance/check-in");
   });
 
   it("ignores a second scan while check-in is submitting", () => {
@@ -694,7 +692,7 @@ describe("public event helpers", () => {
 
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
-      expect(buildCheckInSubmitPath(parsed.eventId)).toBe("/events/event-1/check-in");
+      expect(buildCheckInSubmitPath(parsed.eventId)).toBe("/attendance/check-in");
     }
   });
 

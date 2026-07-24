@@ -4,11 +4,12 @@ import { EventLifecycleService } from "./events/event-lifecycle.service";
 import { EventsModule } from "./events/events.module";
 import { ClubsModule } from "./clubs/clubs.module";
 import { PressModule } from "./press/press.module";
+import { AttendanceModule } from "./attendance/attendance.module";
 import { HealthController } from "./health/health.controller";
 import { HealthService } from "./health/health.service";
 
 @Module({
-  imports: [AuthModule, EventsModule, ClubsModule, PressModule],
+  imports: [AuthModule, EventsModule, ClubsModule, PressModule, AttendanceModule],
   controllers: [HealthController],
   providers: [HealthService, EventLifecycleService]
 })

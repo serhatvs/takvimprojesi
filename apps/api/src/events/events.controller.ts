@@ -8,8 +8,6 @@ import type { PublicEventsQueryDto } from "./dto/public-events-query.dto";
 import type { ReviewEventDto } from "./dto/review-event.dto";
 import type { UpdateEventRevisionDto } from "./dto/update-event-revision.dto";
 import {
-  toAttendanceResponse,
-  toAttendanceTokenResponse,
   toDraftEventResponse,
   toEventAttendanceSummaryResponse,
   toEventResponse,
@@ -180,31 +178,5 @@ export class EventsController {
   async registerForEvent(@CurrentUser() principal: Principal, @Param("eventId") eventId: string) {
     const registration = await this.eventsService.registerForEvent(principal, eventId);
     return toEventRegistrationResponse(registration);
-  }
-
-  @Post(":eventId/attendance-token")
-  @HttpCode(200)
-  @UseGuards(AuthenticationGuard)
-  async issueAttendanceToken(
-    @CurrentUser() principal: Principal,
-    @Param("eventId") eventId: string
-  ) {
-    const token = await this.eventsService.issueAttendanceToken(principal, eventId);
-    return toAttendanceTokenResponse(token);
-  }
-
-  @Post(":eventId/check-in")
-  @UseGuards(AuthenticationGuard)
-  async checkIn(
-    @CurrentUser() principal: Principal,
-    @Param("eventId") eventId: string,
-    @Body() body: { token?: unknown }
-  ) {
-    const attendance = await this.eventsService.checkInWithAttendanceToken(
-      principal,
-      eventId,
-      body?.token
-    );
-    return toAttendanceResponse(attendance);
   }
 }

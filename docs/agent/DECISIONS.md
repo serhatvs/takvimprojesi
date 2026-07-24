@@ -76,3 +76,20 @@
   - Gerekce: Kulup ozet ekranlari icin okunabilir hassasiyet yeterlidir; kayit yoksa bolme hatasini onlemek icin oran `0` kabul edilir.
 - Web katilim ozeti paneli backend summary response'unu tek dogruluk kaynagi kabul eder ve otomatik polling yapmaz.
   - Gerekce: `absentCount`, `remainingCapacity` ve `attendanceRate` API tarafinda tutarli sayim snapshot'i ile hesaplanir. Frontend yalniz Turkce bicimlendirme ve manuel refresh yaparak API ile UI arasinda farkli hesaplama riski olusturmaz.
+
+## 2026-07-24
+
+- QR attendance token'ları HMAC SHA256 / JWT ile imzalı ve kısa ömürlü (90 saniye) olarak tasarlandı.
+  - Gerekce: QR kodlarının başkalarına ekran görüntüsüyle gönderilip suistimal edilmesini önlemek için token'lar kısa süreli olmalıdır.
+- QR token imzalama işlemi oturum secret'ından ayrı `QR_ATTENDANCE_SECRET` çevre değişkenini kullanır.
+  - Gerekce: Auth session JWT secret'ı ile QR token secret'ının ayrılması, bir secret'ın sızması durumunda diğer domain bileşenlerinin etkilenmesini engeller.
+- Token ham verisi veritabanında saklanmaz, token üretimi veritabanına yazma yapmaz (stateless JWT).
+  - Gerekce: Her token üretiminde DB'ye yazmak ölçeklenme ve performans sıkıntısı yaratır; imzalı ve kısa ömürlü JWT stateless olarak doğrulanabilir. `Event.qrTokenHash` alanı geriye dönük uyumluluk için şemada korunur ancak null bırakılır.
+- Katılım zaman penceresi etkinlik başlangıcından 30 dakika önce açılır, bitişinden 30 dakika sonra kapanır.
+  - Gerekce: Katılım kontrolleri etkinlik saatleriyle sınırlı tutulur ve merkezi konfigürasyon (`@agu/config`) altından yönetilir.
+- Check-in işlemi yalnızca `STUDENT` rolüne sahip ve önceden `EventRegistration` kaydı bulunan öğrenciler için geçerlidir.
+  - Gerekce: Katılım kaydı için etkinliğe kayıtlı olmak şarttır. `POST /attendance/check-in` payload'unda sadece token kabul eder, `userId` ise principal'dan alınır.
+- Çift katılım engellemesi PostgreSQL `@@unique([eventId, userId])` kısıtıyla veritabanı seviyesinde garanti edilir.
+  - Gerekce: Aynı öğrencinin eşzamanlı check-in isteklerinde yarış durumu oluşsa bile veritabanı seviyesinde tek bir `Attendance` kaydı oluşması sağlanır ve Prisma `P2002` hatası kontrollü `409 Conflict` cevabına dönüştürülür.
+- Başarılı check-in işlemi audit log kaydı (`EVENT_ATTENDANCE_RECORDED`) oluşturur, ancak audit metadata'sına token veya secret yazılmaz.
+  - Gerekce: Audit kayıtlarının güvenliği için hassas token bilgileri audit verisinden hariç tutulur.

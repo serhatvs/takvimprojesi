@@ -73,8 +73,8 @@ export function hasCheckInAccess(user: AuthPrincipal): boolean {
   return user.globalRoles.includes("STUDENT");
 }
 
-export function buildCheckInSubmitPath(eventId: string): string {
-  return `/events/${encodeURIComponent(eventId)}/check-in`;
+export function buildCheckInSubmitPath(_eventId?: string): string {
+  return `/attendance/check-in`;
 }
 
 export function messageForCheckInResponse(status: number): string {

@@ -152,7 +152,7 @@ export function CheckInPanel({ apiBaseUrl }: CheckInPanelProps) {
     setState({ kind: "submitting" });
 
     try {
-      const response = await fetch(`${apiBaseUrl}${buildCheckInSubmitPath(parsed.eventId)}`, {
+      const response = await fetch(`${apiBaseUrl}${buildCheckInSubmitPath()}`, {
         method: "POST",
         credentials: "include",
         cache: "no-store",
