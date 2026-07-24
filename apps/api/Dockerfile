@@ -79,12 +79,6 @@ RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" pnpm --filter @
 RUN pnpm turbo run build --filter=@agu/api...
 
 ################################################################################
-# prod-deps: same as installer, but with devDependencies pruned away
-################################################################################
-FROM installer AS prod-deps
-RUN CI=true pnpm prune --prod
-
-################################################################################
 # api: the Cloud Run service image (default build target)
 ################################################################################
 FROM base AS api
@@ -92,15 +86,18 @@ FROM base AS api
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs apiuser
 
-COPY --from=prod-deps --chown=apiuser:nodejs /app/node_modules ./node_modules
-COPY --from=prod-deps --chown=apiuser:nodejs /app/packages ./packages
-COPY --from=prod-deps --chown=apiuser:nodejs /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=prod-deps --chown=apiuser:nodejs /app/apps/api/package.json ./apps/api/package.json
-COPY --from=prod-deps --chown=apiuser:nodejs /app/apps/api/dist ./apps/api/dist
+# Keep the complete pruned workspace install. `pnpm prune --prod` is not
+# recursive for workspace projects and removed API runtime packages such as
+# @nestjs/core from the final image.
+COPY --from=installer --chown=apiuser:nodejs /app/node_modules ./node_modules
+COPY --from=installer --chown=apiuser:nodejs /app/packages ./packages
+COPY --from=installer --chown=apiuser:nodejs /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=installer --chown=apiuser:nodejs /app/apps/api/package.json ./apps/api/package.json
+COPY --from=installer --chown=apiuser:nodejs /app/apps/api/dist ./apps/api/dist
 # Schema + migrations are kept in the API image too (not just the migrate
 # target) so `prisma migrate deploy` can also be run as a one-off against
 # this exact image if ever needed; the API process itself never invokes it.
-COPY --from=prod-deps --chown=apiuser:nodejs /app/apps/api/prisma ./apps/api/prisma
+COPY --from=installer --chown=apiuser:nodejs /app/apps/api/prisma ./apps/api/prisma
 
 USER apiuser
 
