@@ -1951,7 +1951,7 @@ describe("EventsService", () => {
         service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", {
           reason: "Gerekçe açıklaması",
           status: "CANCELLED"
-        } as any)
+        } as unknown as import("./dto/cancel-event.dto").CancelEventDto)
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 

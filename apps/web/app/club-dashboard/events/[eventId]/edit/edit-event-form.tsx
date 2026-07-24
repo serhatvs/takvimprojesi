@@ -15,7 +15,6 @@ import {
   buildReturnDashboardHref,
   buildRevisionApiPath,
   buildSubmitApiPath,
-  getSafeResubmitErrorMessage,
   getSafeRevisionUpdateErrorMessage
 } from "./edit-event-helper";
 

@@ -1933,7 +1933,10 @@ describe("POST /events", () => {
     });
   });
 
-  async function createDraftEventInDb(clubIdParam: string, statusParam: any = "DRAFT") {
+  async function createDraftEventInDb(
+    clubIdParam: string,
+    statusParam: import("@prisma/client").EventStatus = "DRAFT"
+  ) {
     return prisma.event.create({
       data: {
         clubId: clubIdParam,
