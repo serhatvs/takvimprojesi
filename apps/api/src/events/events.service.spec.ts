@@ -151,8 +151,9 @@ function createService({
     capacity: 100
   },
   attendanceSummaryRegistrationCount = 80,
-  attendanceSummaryAttendanceCount = 62
-}: CreateServiceOptions = {}) {
+  attendanceSummaryAttendanceCount = 62,
+  endsAt = new Date(Date.now() - 60 * 60 * 1000)
+}: CreateServiceOptions & { endsAt?: Date } = {}) {
   const createdEvent = {
     id: "event-id",
     clubId: "club-id",
@@ -240,7 +241,9 @@ function createService({
           id: "event-id",
           clubId: "club-id",
           status: existingStatus,
-          createdById: "club-admin-id"
+          createdById: "club-admin-id",
+          publishedAt: new Date("2026-07-23T12:00:00.000Z"),
+          endsAt
         });
       }),
       findFirst: vi.fn().mockImplementation((args) => {
@@ -405,6 +408,15 @@ function createService({
         return;
       }
       if (from === "APPROVED" && to === "PUBLISHED") {
+        return;
+      }
+      if (
+        ["SUBMITTED", "CHANGES_REQUESTED", "APPROVED", "PUBLISHED"].includes(from) &&
+        to === "CANCELLED"
+      ) {
+        return;
+      }
+      if (from === "PUBLISHED" && to === "COMPLETED") {
         return;
       }
 
@@ -1831,6 +1843,293 @@ describe("EventsService", () => {
           service.submitDraftEvent(clubAdmin, "11111111-1111-4111-8111-111111111111")
         ).rejects.toBeInstanceOf(ConflictException);
       }
+    });
+  });
+
+  describe("cancelEvent", () => {
+    const validCancelBody = { reason: "Etkinlik mekan değişikliği nedeniyle iptal edilmiştir." };
+
+    it("allows active ADMIN of event's club to cancel event", async () => {
+      const { service } = createService({ canManage: true, existingStatus: "SUBMITTED" });
+      const result = await service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", validCancelBody);
+      expect(result).toBeDefined();
+    });
+
+    it("allows SYSTEM_ADMIN to cancel event", async () => {
+      const { service } = createService({ canManage: true, existingStatus: "APPROVED" });
+      const result = await service.cancelEvent(systemAdmin, "11111111-1111-4111-8111-111111111111", validCancelBody);
+      expect(result).toBeDefined();
+    });
+
+    it("rejects other club admin with ForbiddenException (403)", async () => {
+      const { service } = createService({ canManage: false, existingStatus: "PUBLISHED" });
+      await expect(
+        service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", validCancelBody)
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects CLUB_MEMBER with ForbiddenException (403)", async () => {
+      const { service } = createService({ canManage: false, existingStatus: "SUBMITTED" });
+      await expect(
+        service.cancelEvent(clubMember, "11111111-1111-4111-8111-111111111111", validCancelBody)
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects STUDENT with ForbiddenException (403)", async () => {
+      const { service } = createService({ canManage: false, existingStatus: "SUBMITTED" });
+      await expect(
+        service.cancelEvent(student, "11111111-1111-4111-8111-111111111111", validCancelBody)
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects PRESS_EDITOR-only with ForbiddenException (403)", async () => {
+      const { service } = createService({ canManage: false, existingStatus: "APPROVED" });
+      await expect(
+        service.cancelEvent(pressEditor, "11111111-1111-4111-8111-111111111111", validCancelBody)
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("throws NotFoundException (404) for non-existent event", async () => {
+      const { service, prisma } = createService();
+      prisma.event.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.cancelEvent(systemAdmin, "99999999-9999-4999-8999-999999999999", validCancelBody)
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("throws BadRequestException (400) for invalid UUID eventId", async () => {
+      const { service } = createService();
+      await expect(
+        service.cancelEvent(clubAdmin, "invalid-uuid", validCancelBody)
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it.each(["SUBMITTED", "CHANGES_REQUESTED", "APPROVED", "PUBLISHED"])(
+      "transitions %s -> CANCELLED successfully",
+      async (startStatus) => {
+        const { service } = createService({ canManage: true, existingStatus: startStatus });
+        const result = await service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", validCancelBody);
+        expect(result).toBeDefined();
+      }
+    );
+
+    it.each(["DRAFT", "REJECTED", "CANCELLED", "COMPLETED"])(
+      "rejects cancellation for %s status with ConflictException (409)",
+      async (startStatus) => {
+        const { service } = createService({ canManage: true, existingStatus: startStatus });
+        await expect(
+          service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", validCancelBody)
+        ).rejects.toBeInstanceOf(ConflictException);
+      }
+    );
+
+    it("throws BadRequestException (400) when reason is empty or spaces only", async () => {
+      const { service } = createService({ existingStatus: "SUBMITTED" });
+      await expect(
+        service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", { reason: "   " })
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws BadRequestException (400) when reason is shorter than 5 chars", async () => {
+      const { service } = createService({ existingStatus: "SUBMITTED" });
+      await expect(
+        service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", { reason: "İpta" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws BadRequestException (400) when reason exceeds 500 chars", async () => {
+      const { service } = createService({ existingStatus: "SUBMITTED" });
+      const longReason = "a".repeat(501);
+      await expect(
+        service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", { reason: longReason })
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws BadRequestException (400) when extra body parameters are provided", async () => {
+      const { service } = createService({ existingStatus: "SUBMITTED" });
+      await expect(
+        service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", {
+          reason: "Gerekçe açıklaması",
+          status: "CANCELLED"
+        } as any)
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("creates EVENT_CANCELLED AuditLog entry with reason and clears QR token atomically in transaction", async () => {
+      const calls: string[] = [];
+      const transactionClient = {
+        event: {
+          updateMany: vi.fn(async (args) => {
+            calls.push("update");
+            expect(args.data).toEqual({
+              status: "CANCELLED",
+              qrTokenHash: null,
+              qrTokenExpiresAt: null
+            });
+            return { count: 1 };
+          }),
+          findUniqueOrThrow: vi.fn(async () => {
+            calls.push("read");
+            return { id: "11111111-1111-4111-8111-111111111111", status: "CANCELLED" };
+          })
+        },
+        auditLog: {
+          create: vi.fn(async () => {
+            calls.push("audit");
+            return { id: "audit-id" };
+          })
+        }
+      };
+      const { service, prisma } = createService({ existingStatus: "SUBMITTED" });
+      prisma.$transaction.mockImplementationOnce(async (cb) => cb(transactionClient));
+
+      await service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", validCancelBody);
+
+      expect(calls).toEqual(["update", "audit", "read"]);
+      expect(transactionClient.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: "EVENT_CANCELLED",
+          before: { status: "SUBMITTED" },
+          after: { status: "CANCELLED" },
+          metadata: { reason: validCancelBody.reason.trim() }
+        })
+      });
+    });
+
+    it("throws ConflictException (409) if updateMany returns count 0 due to concurrent status change", async () => {
+      const transactionClient = {
+        event: {
+          updateMany: vi.fn(async () => ({ count: 0 }))
+        }
+      };
+      const { service, prisma } = createService({ existingStatus: "SUBMITTED" });
+      prisma.$transaction.mockImplementationOnce(async (cb) => cb(transactionClient));
+
+      await expect(
+        service.cancelEvent(clubAdmin, "11111111-1111-4111-8111-111111111111", validCancelBody)
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe("completeEvent", () => {
+    it("allows active ADMIN of event's club to complete an ended PUBLISHED event", async () => {
+      const { service } = createService({ canManage: true, existingStatus: "PUBLISHED" });
+      const result = await service.completeEvent(clubAdmin, "11111111-1111-4111-8111-111111111111");
+      expect(result).toBeDefined();
+    });
+
+    it("allows SYSTEM_ADMIN to complete an ended PUBLISHED event", async () => {
+      const { service } = createService({ canManage: true, existingStatus: "PUBLISHED" });
+      const result = await service.completeEvent(systemAdmin, "11111111-1111-4111-8111-111111111111");
+      expect(result).toBeDefined();
+    });
+
+    it("rejects other club admin with ForbiddenException (403)", async () => {
+      const { service } = createService({ canManage: false, existingStatus: "PUBLISHED" });
+      await expect(
+        service.completeEvent(clubAdmin, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects CLUB_MEMBER with ForbiddenException (403)", async () => {
+      const { service } = createService({ canManage: false, existingStatus: "PUBLISHED" });
+      await expect(
+        service.completeEvent(clubMember, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("rejects PRESS_EDITOR-only with ForbiddenException (403)", async () => {
+      const { service } = createService({ canManage: false, existingStatus: "PUBLISHED" });
+      await expect(
+        service.completeEvent(pressEditor, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("throws NotFoundException (404) for non-existent event", async () => {
+      const { service, prisma } = createService();
+      prisma.event.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.completeEvent(systemAdmin, "99999999-9999-4999-8999-999999999999")
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("throws BadRequestException (400) for invalid UUID eventId", async () => {
+      const { service } = createService();
+      await expect(service.completeEvent(clubAdmin, "invalid-uuid")).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+
+    it("throws ConflictException (409) for a PUBLISHED event whose endsAt is in the future", async () => {
+      const futureEndsAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      const { service } = createService({ existingStatus: "PUBLISHED", endsAt: futureEndsAt });
+      await expect(
+        service.completeEvent(clubAdmin, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it.each(["DRAFT", "SUBMITTED", "CHANGES_REQUESTED", "REJECTED", "APPROVED", "CANCELLED", "COMPLETED"])(
+      "rejects completion for %s status with ConflictException (409)",
+      async (startStatus) => {
+        const { service } = createService({ canManage: true, existingStatus: startStatus });
+        await expect(
+          service.completeEvent(clubAdmin, "11111111-1111-4111-8111-111111111111")
+        ).rejects.toBeInstanceOf(ConflictException);
+      }
+    );
+
+    it("creates EVENT_COMPLETED AuditLog entry and clears QR token atomically in transaction", async () => {
+      const calls: string[] = [];
+      const transactionClient = {
+        event: {
+          updateMany: vi.fn(async (args) => {
+            calls.push("update");
+            expect(args.data).toEqual({
+              status: "COMPLETED",
+              qrTokenHash: null,
+              qrTokenExpiresAt: null
+            });
+            return { count: 1 };
+          }),
+          findUniqueOrThrow: vi.fn(async () => {
+            calls.push("read");
+            return { id: "11111111-1111-4111-8111-111111111111", status: "COMPLETED" };
+          })
+        },
+        auditLog: {
+          create: vi.fn(async () => {
+            calls.push("audit");
+            return { id: "audit-id" };
+          })
+        }
+      };
+      const { service, prisma } = createService({ existingStatus: "PUBLISHED" });
+      prisma.$transaction.mockImplementationOnce(async (cb) => cb(transactionClient));
+
+      await service.completeEvent(clubAdmin, "11111111-1111-4111-8111-111111111111");
+
+      expect(calls).toEqual(["update", "audit", "read"]);
+      expect(transactionClient.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: "EVENT_COMPLETED",
+          before: { status: "PUBLISHED" },
+          after: { status: "COMPLETED" }
+        })
+      });
+    });
+
+    it("throws ConflictException (409) if updateMany returns count 0 due to concurrency loss", async () => {
+      const transactionClient = {
+        event: {
+          updateMany: vi.fn(async () => ({ count: 0 }))
+        }
+      };
+      const { service, prisma } = createService({ existingStatus: "PUBLISHED" });
+      prisma.$transaction.mockImplementationOnce(async (cb) => cb(transactionClient));
+
+      await expect(
+        service.completeEvent(clubAdmin, "11111111-1111-4111-8111-111111111111")
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });

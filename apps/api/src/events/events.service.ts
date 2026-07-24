@@ -352,6 +352,174 @@ export class EventsService {
     });
   }
 
+  async cancelEvent(
+    principal: Principal,
+    eventId: string,
+    dto: import("./dto/cancel-event.dto").CancelEventDto
+  ) {
+    this.assertValidEventId(eventId);
+
+    const keys = Object.keys(dto || {});
+    if (keys.length === 0 || keys.some((k) => k !== "reason")) {
+      throw new BadRequestException("Only reason parameter is allowed.");
+    }
+
+    if (typeof dto.reason !== "string") {
+      throw new BadRequestException("reason must be a string.");
+    }
+    const trimmedReason = dto.reason.trim();
+    if (trimmedReason.length < 5 || trimmedReason.length > 500) {
+      throw new BadRequestException("reason must be between 5 and 500 characters.");
+    }
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        status: true,
+        publishedAt: true
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    const canManage = await this.authorizationService.canManageClub(principal, event.clubId);
+    if (!canManage) {
+      throw new ForbiddenException("You are not allowed to cancel events for this club.");
+    }
+
+    const allowedStartingStatuses = ["SUBMITTED", "CHANGES_REQUESTED", "APPROVED", "PUBLISHED"];
+    if (!allowedStartingStatuses.includes(event.status)) {
+      throw new ConflictException("Event cannot be cancelled in its current status.");
+    }
+
+    const lifecycleRoles = principal.globalRoles.includes("SYSTEM_ADMIN")
+      ? ["SYSTEM_ADMIN" as const]
+      : ["CLUB_ADMIN" as const];
+
+    try {
+      this.eventLifecycleService.assertTransitionAllowed(event.status, "CANCELLED", lifecycleRoles);
+    } catch {
+      throw new ConflictException("Event cannot be cancelled in its current status.");
+    }
+
+    const previousStatus = event.status;
+    return this.prisma.$transaction(async (transaction) => {
+      const updateResult = await transaction.event.updateMany({
+        where: {
+          id: eventId,
+          status: previousStatus
+        },
+        data: {
+          status: "CANCELLED",
+          qrTokenHash: null,
+          qrTokenExpiresAt: null
+        }
+      });
+
+      if (updateResult.count !== 1) {
+        throw new ConflictException("Event cannot be cancelled in its current status.");
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          actorId: principal.userId,
+          entityType: "Event",
+          entityId: eventId,
+          action: "EVENT_CANCELLED",
+          before: { status: previousStatus },
+          after: { status: "CANCELLED" },
+          metadata: {
+            reason: trimmedReason
+          }
+        }
+      });
+
+      return transaction.event.findUniqueOrThrow({
+        where: { id: eventId }
+      });
+    });
+  }
+
+  async completeEvent(principal: Principal, eventId: string) {
+    this.assertValidEventId(eventId);
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        clubId: true,
+        status: true,
+        endsAt: true
+      }
+    });
+
+    if (!event) {
+      throw new NotFoundException("Event was not found.");
+    }
+
+    const canManage = await this.authorizationService.canManageClub(principal, event.clubId);
+    if (!canManage) {
+      throw new ForbiddenException("You are not allowed to complete events for this club.");
+    }
+
+    if (event.status !== "PUBLISHED") {
+      throw new ConflictException("Only published events can be completed.");
+    }
+
+    const now = new Date();
+    if (event.endsAt > now) {
+      throw new ConflictException("Event cannot be completed before its end time.");
+    }
+
+    const lifecycleRoles = principal.globalRoles.includes("SYSTEM_ADMIN")
+      ? ["SYSTEM_ADMIN" as const]
+      : ["CLUB_ADMIN" as const];
+
+    try {
+      this.eventLifecycleService.assertTransitionAllowed(event.status, "COMPLETED", lifecycleRoles);
+    } catch {
+      throw new ConflictException("Only published events can be completed.");
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const updateResult = await transaction.event.updateMany({
+        where: {
+          id: eventId,
+          status: "PUBLISHED",
+          endsAt: { lte: now }
+        },
+        data: {
+          status: "COMPLETED",
+          qrTokenHash: null,
+          qrTokenExpiresAt: null
+        }
+      });
+
+      if (updateResult.count !== 1) {
+        throw new ConflictException("Event cannot be completed before its end time or is not in PUBLISHED status.");
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          actorId: principal.userId,
+          entityType: "Event",
+          entityId: eventId,
+          action: "EVENT_COMPLETED",
+          before: { status: "PUBLISHED" },
+          after: { status: "COMPLETED" }
+        }
+      });
+
+      return transaction.event.findUniqueOrThrow({
+        where: { id: eventId }
+      });
+    });
+  }
+
   private validateUpdateEventRevision(
     dto: import("./dto/update-event-revision.dto").UpdateEventRevisionDto
   ): import("./dto/update-event-revision.dto").ValidUpdateEventRevisionInput {

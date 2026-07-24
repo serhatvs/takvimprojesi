@@ -336,5 +336,9 @@ export interface UpdateEventRevisionRequest {
   capacity?: number | null;
 }
 
+export interface CancelEventRequest {
+  reason: string;
+}
+
 export { EVENT_TRANSITIONS, canTransitionEvent } from "./event-lifecycle";
 export type { EventTransition } from "./event-lifecycle";

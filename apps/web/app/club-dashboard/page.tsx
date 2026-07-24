@@ -11,6 +11,7 @@ import {
   type RawSearchParams
 } from "./club-dashboard";
 import { SubmitEventControl } from "./submit-event-control";
+import { EventLifecycleControls } from "./event-lifecycle-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
   }
 
   const selectedClubId = typeof resolvedParams.clubId === "string" ? resolvedParams.clubId : clubs[0]!.id;
+  const selectedClub = clubs.find((c) => c.id === selectedClubId) ?? clubs[0];
   
   let eventsContent = null;
   
@@ -115,6 +117,14 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
                     </Link>
                   </div>
                 )}
+                <EventLifecycleControls
+                  eventId={item.id}
+                  eventTitle={item.title}
+                  status={item.status}
+                  endsAt={item.endsAt}
+                  formattedEndsAt={vm.endsAt}
+                  clubName={selectedClub?.name ?? ""}
+                />
               </div>
             );
           })}

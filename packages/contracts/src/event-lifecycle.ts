@@ -14,7 +14,6 @@ export const EVENT_TRANSITIONS: readonly EventTransition[] = [
   { from: "CHANGES_REQUESTED", to: "SUBMITTED", roles: ["CLUB_ADMIN", "SYSTEM_ADMIN"] },
   { from: "APPROVED", to: "PUBLISHED", roles: ["PRESS_EDITOR", "SYSTEM_ADMIN"] },
   { from: "PUBLISHED", to: "COMPLETED", roles: ["CLUB_ADMIN", "SYSTEM_ADMIN"] },
-  { from: "DRAFT", to: "CANCELLED", roles: ["CLUB_ADMIN"] },
   { from: "SUBMITTED", to: "CANCELLED", roles: ["CLUB_ADMIN", "SYSTEM_ADMIN"] },
   { from: "CHANGES_REQUESTED", to: "CANCELLED", roles: ["CLUB_ADMIN", "SYSTEM_ADMIN"] },
   { from: "APPROVED", to: "CANCELLED", roles: ["CLUB_ADMIN", "SYSTEM_ADMIN"] },

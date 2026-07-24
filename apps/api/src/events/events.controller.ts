@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards }
 import { AuthenticationGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { Principal } from "../auth/principal";
+import type { CancelEventDto } from "./dto/cancel-event.dto";
 import type { CreateDraftEventDto } from "./dto/create-draft-event.dto";
 import type { PublicEventsQueryDto } from "./dto/public-events-query.dto";
 import type { ReviewEventDto } from "./dto/review-event.dto";
@@ -151,6 +152,26 @@ export class EventsController {
   @UseGuards(AuthenticationGuard)
   async publishEvent(@CurrentUser() principal: Principal, @Param("eventId") eventId: string) {
     const event = await this.eventsService.publishEvent(principal, eventId);
+    return toEventResponse(event);
+  }
+
+  @Post(":eventId/cancel")
+  @HttpCode(200)
+  @UseGuards(AuthenticationGuard)
+  async cancelEvent(
+    @CurrentUser() principal: Principal,
+    @Param("eventId") eventId: string,
+    @Body() body: CancelEventDto
+  ) {
+    const event = await this.eventsService.cancelEvent(principal, eventId, body);
+    return toEventResponse(event);
+  }
+
+  @Post(":eventId/complete")
+  @HttpCode(200)
+  @UseGuards(AuthenticationGuard)
+  async completeEvent(@CurrentUser() principal: Principal, @Param("eventId") eventId: string) {
+    const event = await this.eventsService.completeEvent(principal, eventId);
     return toEventResponse(event);
   }
 
