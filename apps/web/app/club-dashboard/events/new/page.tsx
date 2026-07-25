@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from "@agu/config";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { loadManageableClubs } from "../../club-dashboard";
 import { CreateEventForm } from "./create-event-form";
 
@@ -11,7 +12,9 @@ export default async function NewEventPage({
   searchParams?: Promise<{ clubId?: string }>;
 }) {
   const resolvedParams = (await searchParams) || {};
-  const manageableClubsResult = await loadManageableClubs();
+  const incomingHeaders = await headers();
+  const cookieHeader = incomingHeaders.get("cookie") ?? undefined;
+  const manageableClubsResult = await loadManageableClubs(cookieHeader);
 
   if (manageableClubsResult.status === "api-error") {
     return (
