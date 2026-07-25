@@ -126,11 +126,12 @@ export function toClubEventCardViewModel(item: ClubEventListItem): ClubEventCard
   };
 }
 
-export async function loadManageableClubs(): Promise<ManageableClubsLoadResult> {
+export async function loadManageableClubs(cookieHeader?: string): Promise<ManageableClubsLoadResult> {
   try {
     const res = await fetch(`${getApiBaseUrl()}/clubs/manageable`, {
       cache: "no-store",
-      credentials: "include"
+      credentials: "include",
+      headers: cookieHeader ? { Cookie: cookieHeader } : undefined
     });
     if (!res.ok) {
       return { status: "api-error", message: `API Error: ${res.status}` };
@@ -143,13 +144,14 @@ export async function loadManageableClubs(): Promise<ManageableClubsLoadResult> 
   }
 }
 
-export async function loadClubEvents(clubId: string, searchParams: RawSearchParams): Promise<ClubEventsLoadResult> {
+export async function loadClubEvents(clubId: string, searchParams: RawSearchParams, cookieHeader?: string): Promise<ClubEventsLoadResult> {
   const filters = parseClubDashboardFilters(searchParams);
   try {
     const apiPath = buildClubEventsApiPath(clubId, filters);
     const res = await fetch(`${getApiBaseUrl()}${apiPath}`, {
       cache: "no-store",
-      credentials: "include"
+      credentials: "include",
+      headers: cookieHeader ? { Cookie: cookieHeader } : undefined
     });
     if (!res.ok) {
       return { status: "api-error", filters, message: `API Error: ${res.status}` };

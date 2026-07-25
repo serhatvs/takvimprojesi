@@ -1,6 +1,7 @@
 import { EVENT_STATUSES } from "@agu/contracts";
 import { StatusBadge } from "@agu/ui";
 import Link from "next/link";
+import { headers } from "next/headers";
 import {
   buildClubDashboardPageHref,
   loadClubEvents,
@@ -18,8 +19,11 @@ export const dynamic = "force-dynamic";
 export default async function ClubDashboardPage({ searchParams }: { searchParams?: Promise<RawSearchParams> }) {
   const resolvedParams = (await searchParams) || {};
   const filters = parseClubDashboardFilters(resolvedParams);
-  
-  const manageableClubsResult = await loadManageableClubs();
+
+  const incomingHeaders = await headers();
+  const cookieHeader = incomingHeaders.get("cookie") ?? undefined;
+
+  const manageableClubsResult = await loadManageableClubs(cookieHeader);
 
   if (manageableClubsResult.status === "api-error") {
     return (
@@ -56,7 +60,7 @@ export default async function ClubDashboardPage({ searchParams }: { searchParams
   let eventsContent = null;
   
   if (selectedClubId) {
-    const eventsResult = await loadClubEvents(selectedClubId, resolvedParams);
+    const eventsResult = await loadClubEvents(selectedClubId, resolvedParams, cookieHeader);
     
     if (eventsResult.status === "api-error") {
       eventsContent = (

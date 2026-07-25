@@ -175,12 +175,27 @@ describe("club-dashboard", () => {
           ok: true,
           json: async () => ({ clubs: [{ id: "c1", name: "Club 1" }] })
         });
-        
+
         const res = await loadManageableClubs();
         expect(res).toEqual({ status: "success", clubs: [{ id: "c1", name: "Club 1" }] });
         expect(globalFetchSpy).toHaveBeenCalledWith("http://api.example.com/clubs/manageable", {
           cache: "no-store",
-          credentials: "include"
+          credentials: "include",
+          headers: undefined
+        });
+      });
+
+      it("forwards the cookie header when provided", async () => {
+        globalFetchSpy.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ clubs: [] })
+        });
+
+        await loadManageableClubs("agu_session=abc123");
+        expect(globalFetchSpy).toHaveBeenCalledWith("http://api.example.com/clubs/manageable", {
+          cache: "no-store",
+          credentials: "include",
+          headers: { Cookie: "agu_session=abc123" }
         });
       });
 
@@ -215,7 +230,22 @@ describe("club-dashboard", () => {
         }
         expect(globalFetchSpy).toHaveBeenCalledWith("http://api.example.com/clubs/c1/events?q=foo", {
           cache: "no-store",
-          credentials: "include"
+          credentials: "include",
+          headers: undefined
+        });
+      });
+
+      it("forwards the cookie header when provided", async () => {
+        globalFetchSpy.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ items: [], pagination: {}, statusCounts: {} })
+        });
+
+        await loadClubEvents("c1", { q: "foo" }, "agu_session=abc123");
+        expect(globalFetchSpy).toHaveBeenCalledWith("http://api.example.com/clubs/c1/events?q=foo", {
+          cache: "no-store",
+          credentials: "include",
+          headers: { Cookie: "agu_session=abc123" }
         });
       });
 
