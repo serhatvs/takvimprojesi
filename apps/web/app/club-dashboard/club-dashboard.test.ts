@@ -180,8 +180,7 @@ describe("club-dashboard", () => {
         expect(res).toEqual({ status: "success", clubs: [{ id: "c1", name: "Club 1" }] });
         expect(globalFetchSpy).toHaveBeenCalledWith("http://api.example.com/clubs/manageable", {
           cache: "no-store",
-          credentials: "include",
-          headers: undefined
+          credentials: "include"
         });
       });
 
@@ -230,8 +229,7 @@ describe("club-dashboard", () => {
         }
         expect(globalFetchSpy).toHaveBeenCalledWith("http://api.example.com/clubs/c1/events?q=foo", {
           cache: "no-store",
-          credentials: "include",
-          headers: undefined
+          credentials: "include"
         });
       });
 

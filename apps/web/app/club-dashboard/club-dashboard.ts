@@ -131,7 +131,7 @@ export async function loadManageableClubs(cookieHeader?: string): Promise<Manage
     const res = await fetch(`${getApiBaseUrl()}/clubs/manageable`, {
       cache: "no-store",
       credentials: "include",
-      headers: cookieHeader ? { Cookie: cookieHeader } : undefined
+      ...(cookieHeader ? { headers: { Cookie: cookieHeader } } : {})
     });
     if (!res.ok) {
       return { status: "api-error", message: `API Error: ${res.status}` };
@@ -151,7 +151,7 @@ export async function loadClubEvents(clubId: string, searchParams: RawSearchPara
     const res = await fetch(`${getApiBaseUrl()}${apiPath}`, {
       cache: "no-store",
       credentials: "include",
-      headers: cookieHeader ? { Cookie: cookieHeader } : undefined
+      ...(cookieHeader ? { headers: { Cookie: cookieHeader } } : {})
     });
     if (!res.ok) {
       return { status: "api-error", filters, message: `API Error: ${res.status}` };
